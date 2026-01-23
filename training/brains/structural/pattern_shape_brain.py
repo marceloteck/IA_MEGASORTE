@@ -6,30 +6,40 @@ from typing import Any, Dict, List, Tuple
 import random
 
 from training.core.base_brain import BaseBrain
-from training.brains._utils import UNIVERSO, count_even, max_consecutive_run, weighted_sample_without_replacement
+from config.game import DIA_DE_SORTE_RULES
+from training.brains._utils import (
+    UNIVERSO,
+    build_faixas,
+    count_even,
+    max_consecutive_run,
+    weighted_sample_without_replacement,
+)
+
+FAIXAS = build_faixas()
 
 
-def _bucket_sum(total: int) -> str:
-    # Buckets bem simples (ajustável depois sem quebrar compatibilidade)
-    if total < 170:
-        return "sum_lt_170"
-    if total < 190:
-        return "sum_170_189"
-    if total < 210:
-        return "sum_190_209"
-    if total < 230:
-        return "sum_210_229"
-    return "sum_ge_230"
+def _bucket_sum(total: int, size: int) -> str:
+    # Buckets relativos à média esperada por tamanho
+    media = ((DIA_DE_SORTE_RULES.universo_max + 1) / 2.0) * size
+    if total < media * 0.85:
+        return "sum_lt_85"
+    if total < media * 0.95:
+        return "sum_85_95"
+    if total < media * 1.05:
+        return "sum_95_105"
+    if total < media * 1.15:
+        return "sum_105_115"
+    return "sum_ge_115"
 
 
-def _band_counts(jogo: List[int]) -> Tuple[int, int, int, int, int]:
-    # 1-5, 6-10, 11-15, 16-20, 21-25
-    b1 = sum(1 for x in jogo if 1 <= x <= 5)
-    b2 = sum(1 for x in jogo if 6 <= x <= 10)
-    b3 = sum(1 for x in jogo if 11 <= x <= 15)
-    b4 = sum(1 for x in jogo if 16 <= x <= 20)
-    b5 = sum(1 for x in jogo if 21 <= x <= 25)
-    return (b1, b2, b3, b4, b5)
+def _band_counts(jogo: List[int]) -> Tuple[int, ...]:
+    counts = [0 for _ in FAIXAS]
+    for d in jogo:
+        for idx, (a, b) in enumerate(FAIXAS):
+            if a <= d <= b:
+                counts[idx] += 1
+                break
+    return tuple(counts)
 
 
 def _shape_key(jogo: List[int]) -> str:
@@ -38,7 +48,8 @@ def _shape_key(jogo: List[int]) -> str:
     run = max_consecutive_run(jogo)
     bands = _band_counts(jogo)
     s = sum(jogo)
-    return f"e{ev}_r{run}_b{bands[0]}{bands[1]}{bands[2]}{bands[3]}{bands[4]}_{_bucket_sum(s)}"
+    band_tag = "-".join(str(x) for x in bands)
+    return f"e{ev}_r{run}_b{band_tag}_{_bucket_sum(s, len(jogo))}"
 
 
 class StructuralPatternShapeBrain(BaseBrain):
@@ -59,9 +70,9 @@ class StructuralPatternShapeBrain(BaseBrain):
         )
 
         # contadores por shape, separados por faixa de pontos
-        self.shape_11 = Counter()
-        self.shape_13 = Counter()
-        self.shape_14 = Counter()
+        self.shape_4 = Counter()
+        self.shape_5 = Counter()
+        self.shape_6 = Counter()
 
         self.total_learns = 0
 
@@ -83,17 +94,16 @@ class StructuralPatternShapeBrain(BaseBrain):
     def generate(self, context: Dict[str, Any], size: int, n: int) -> List[List[int]]:
         size = int(size)
         n = int(n)
-        if size not in (15, 18):
-            size = 15
+        size = max(DIA_DE_SORTE_RULES.jogo_min_dezenas, min(size, DIA_DE_SORTE_RULES.jogo_max_dezenas))
 
         # escolhe de qual “memória de shape” puxar
-        # 15 dezenas: foca mais em 14+; 18: foca em 13+ (mais permissivo)
-        if size == 15 and self.shape_14:
-            source = self.shape_14
-        elif self.shape_13:
-            source = self.shape_13
+        # jogos maiores: foca mais em 6+; menores: 5+
+        if size >= 13 and self.shape_6:
+            source = self.shape_6
+        elif self.shape_5:
+            source = self.shape_5
         else:
-            source = self.shape_11
+            source = self.shape_4
 
         # se ainda vazio, gera aleatório com leve controle
         jogos: List[List[int]] = []
@@ -119,13 +129,13 @@ class StructuralPatternShapeBrain(BaseBrain):
             return 0.0
         k = _shape_key(jogo)
 
-        s14 = float(self.shape_14.get(k, 0))
-        s13 = float(self.shape_13.get(k, 0))
-        s11 = float(self.shape_11.get(k, 0))
+        s6 = float(self.shape_6.get(k, 0))
+        s5 = float(self.shape_5.get(k, 0))
+        s4 = float(self.shape_4.get(k, 0))
 
         # normalização simples (comparativo)
-        denom = 1.0 + s11 + 1.5 * s13 + 2.5 * s14
-        return (s11 + 1.5 * s13 + 2.5 * s14) / denom
+        denom = 1.0 + s4 + 1.5 * s5 + 2.5 * s6
+        return (s4 + 1.5 * s5 + 2.5 * s6) / denom
 
     def learn(
         self,
@@ -141,15 +151,15 @@ class StructuralPatternShapeBrain(BaseBrain):
 
         key = _shape_key(jogo)
 
-        if pontos >= 14:
-            self.shape_14[key] += 1
-            self.shape_13[key] += 1
-            self.shape_11[key] += 1
-        elif pontos >= 13:
-            self.shape_13[key] += 1
-            self.shape_11[key] += 1
-        elif pontos >= 11:
-            self.shape_11[key] += 1
+        if pontos >= 6:
+            self.shape_6[key] += 1
+            self.shape_5[key] += 1
+            self.shape_4[key] += 1
+        elif pontos >= 5:
+            self.shape_5[key] += 1
+            self.shape_4[key] += 1
+        elif pontos >= 4:
+            self.shape_4[key] += 1
 
         self.total_learns += 1
 
@@ -167,9 +177,9 @@ class StructuralPatternShapeBrain(BaseBrain):
     def save_state(self) -> None:
         self.state = {
             "total_learns": int(self.total_learns),
-            "shape_11": dict(self.shape_11),
-            "shape_13": dict(self.shape_13),
-            "shape_14": dict(self.shape_14),
+            "shape_4": dict(self.shape_4),
+            "shape_5": dict(self.shape_5),
+            "shape_6": dict(self.shape_6),
         }
         super().save_state()
 
@@ -179,24 +189,24 @@ class StructuralPatternShapeBrain(BaseBrain):
     def _rebuild_from_state(self) -> None:
         try:
             self.total_learns = int(self.state.get("total_learns", 0))
-            self.shape_11 = Counter(self.state.get("shape_11", {}) or {})
-            self.shape_13 = Counter(self.state.get("shape_13", {}) or {})
-            self.shape_14 = Counter(self.state.get("shape_14", {}) or {})
+            self.shape_4 = Counter(self.state.get("shape_4", {}) or {})
+            self.shape_5 = Counter(self.state.get("shape_5", {}) or {})
+            self.shape_6 = Counter(self.state.get("shape_6", {}) or {})
         except Exception:
             self.total_learns = 0
-            self.shape_11 = Counter()
-            self.shape_13 = Counter()
-            self.shape_14 = Counter()
+            self.shape_4 = Counter()
+            self.shape_5 = Counter()
+            self.shape_6 = Counter()
 
     def report(self) -> Dict[str, Any]:
-        top14 = [k for k, _ in self.shape_14.most_common(5)]
+        top6 = [k for k, _ in self.shape_6.most_common(5)]
         return {
             **super().report(),
             "total_learns": int(self.total_learns),
-            "unique_shapes_11": len(self.shape_11),
-            "unique_shapes_13": len(self.shape_13),
-            "unique_shapes_14": len(self.shape_14),
-            "top_shapes_14": top14,
+            "unique_shapes_4": len(self.shape_4),
+            "unique_shapes_5": len(self.shape_5),
+            "unique_shapes_6": len(self.shape_6),
+            "top_shapes_6": top6,
         }
 
     # --------------------------
@@ -211,25 +221,21 @@ class StructuralPatternShapeBrain(BaseBrain):
         - sum bucket (aproximado)
         """
         # parse simples
-        # formato: e{ev}_r{run}_b{b1}{b2}{b3}{b4}{b5}_{sum_bucket}
+        # formato: e{ev}_r{run}_b{b1-b2-...}_{sum_bucket}
         parts = key.split("_")
         ev = int(parts[0][1:]) if parts and parts[0].startswith("e") else 7
         run = int(parts[1][1:]) if len(parts) > 1 and parts[1].startswith("r") else 3
 
-        band = (3, 3, 3, 3, 3)  # default
+        band = tuple(3 for _ in FAIXAS)  # default
         if len(parts) > 2 and parts[2].startswith("b"):
             b = parts[2][1:]
-            if len(b) == 5 and all(ch.isdigit() for ch in b):
-                band = (int(b[0]), int(b[1]), int(b[2]), int(b[3]), int(b[4]))
+            try:
+                band = tuple(int(x) for x in b.split("-"))
+            except Exception:
+                band = band
 
         # pools por faixa
-        pools = [
-            [x for x in UNIVERSO if 1 <= x <= 5],
-            [x for x in UNIVERSO if 6 <= x <= 10],
-            [x for x in UNIVERSO if 11 <= x <= 15],
-            [x for x in UNIVERSO if 16 <= x <= 20],
-            [x for x in UNIVERSO if 21 <= x <= 25],
-        ]
+        pools = [[x for x in UNIVERSO if faixa[0] <= x <= faixa[1]] for faixa in FAIXAS]
 
         jogo: List[int] = []
 

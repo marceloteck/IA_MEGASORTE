@@ -21,8 +21,9 @@ if str(ROOT) not in sys.path:
 try:
     from config.paths import DB_PATH
 except Exception:
-    DB_PATH = ROOT / "data" / "BD" / "lotofacil.db"
+    DB_PATH = ROOT / "data" / "BD" / "dia_de_sorte.db"
 
+from config.game import DIA_DE_SORTE_RULES, MESES_SORTE
 from data.BD.connection import get_conn
 from training.core.brain_hub import BrainHub
 
@@ -30,7 +31,7 @@ from training.core.brain_hub import BrainHub
 # ==========================
 # Util
 # ==========================
-UNIVERSO = list(range(1, 26))
+UNIVERSO = DIA_DE_SORTE_RULES.universo
 
 
 def now_str() -> str:
@@ -86,7 +87,7 @@ def fetch_result(conn, concurso: int) -> Optional[List[int]]:
     cur = conn.cursor()
     cur.execute(
         """
-        SELECT d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12,d13,d14,d15
+        SELECT d1,d2,d3,d4,d5,d6,d7
         FROM concursos
         WHERE concurso=?
         """,
@@ -102,7 +103,7 @@ def fetch_recent_results(conn, concurso_n: int, janela: int) -> List[List[int]]:
     cur = conn.cursor()
     cur.execute(
         """
-        SELECT d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12,d13,d14,d15
+        SELECT d1,d2,d3,d4,d5,d6,d7
         FROM concursos
         WHERE concurso <= ?
         ORDER BY concurso DESC
@@ -118,7 +119,7 @@ def fetch_recent_results(conn, concurso_n: int, janela: int) -> List[List[int]]:
 def build_context(conn, concurso_n: int, janela_recente: int) -> Dict[str, Any]:
     historico = fetch_recent_results(conn, concurso_n, janela_recente)
     ultimo = historico[-1] if historico else (fetch_result(conn, concurso_n) or [])
-    freq: Dict[int, int] = {i: 0 for i in range(1, 26)}
+    freq: Dict[int, int] = {i: 0 for i in range(1, DIA_DE_SORTE_RULES.universo_max + 1)}
     for r in historico:
         for d in r:
             freq[int(d)] += 1
@@ -132,14 +133,43 @@ def build_context(conn, concurso_n: int, janela_recente: int) -> Dict[str, Any]:
     }
 
 
-def fetch_memoria_top(conn, min_pontos: int = 14, limit: int = 400) -> List[List[int]]:
+def fetch_mes_freq(conn) -> Dict[int, int]:
+    if safe_table_exists(conn, "frequencias_meses"):
+        cur = conn.cursor()
+        cur.execute("SELECT mes, quantidade FROM frequencias_meses")
+        rows = cur.fetchall()
+        if rows:
+            return {int(m): int(q) for m, q in rows if m}
+
+    if safe_table_exists(conn, "concursos"):
+        cur = conn.cursor()
+        cur.execute("SELECT mes_sorte FROM concursos WHERE mes_sorte IS NOT NULL")
+        rows = cur.fetchall()
+        freq: Dict[int, int] = {i: 0 for i in range(1, 13)}
+        for (mes,) in rows:
+            if mes:
+                freq[int(mes)] += 1
+        return freq
+
+    return {i: 0 for i in range(1, 13)}
+
+
+def escolher_mes_sorte(freq_meses: Dict[int, int]) -> int:
+    if not freq_meses:
+        return random.randint(1, 12)
+    meses = sorted(freq_meses.keys())
+    weights = [max(1, int(freq_meses.get(m, 0))) for m in meses]
+    return int(random.choices(meses, weights=weights, k=1)[0])
+
+
+def fetch_memoria_top(conn, min_pontos: int = 6, limit: int = 400) -> List[List[int]]:
     if not safe_table_exists(conn, "memoria_jogos"):
         return []
 
     cur = conn.cursor()
     cur.execute(
         """
-        SELECT d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12,d13,d14,d15,d16,d17,d18
+        SELECT d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12,d13,d14,d15
         FROM memoria_jogos
         WHERE acertos >= ?
         ORDER BY id DESC
@@ -151,7 +181,7 @@ def fetch_memoria_top(conn, min_pontos: int = 14, limit: int = 400) -> List[List
     jogos: List[List[int]] = []
     for r in rows:
         nums = [int(x) for x in r if x is not None]
-        if len(nums) >= 15:
+        if len(nums) >= DIA_DE_SORTE_RULES.jogo_min_dezenas:
             jogos.append(sorted(nums))
     return jogos
 
@@ -168,10 +198,10 @@ def ensure_pred_table(conn: sqlite3.Connection) -> None:
             concurso_previsto INTEGER NOT NULL,
             tamanho INTEGER NOT NULL,
             ordem INTEGER NOT NULL,
+            mes_sorte INTEGER,
             d1 INTEGER, d2 INTEGER, d3 INTEGER, d4 INTEGER, d5 INTEGER,
             d6 INTEGER, d7 INTEGER, d8 INTEGER, d9 INTEGER, d10 INTEGER,
             d11 INTEGER, d12 INTEGER, d13 INTEGER, d14 INTEGER, d15 INTEGER,
-            d16 INTEGER, d17 INTEGER, d18 INTEGER,
             score_final REAL NOT NULL,
             score_hub REAL,
             score_freq REAL,
@@ -184,7 +214,7 @@ def ensure_pred_table(conn: sqlite3.Connection) -> None:
             max_sim REAL,
             brains_ativos INTEGER,
             timestamp TEXT,
-            UNIQUE(concurso_previsto, tamanho, ordem, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12, d13, d14, d15, d16, d17, d18)
+            UNIQUE(concurso_previsto, tamanho, ordem, mes_sorte, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12, d13, d14, d15)
         );
         CREATE INDEX IF NOT EXISTS idx_predicoes_concurso
         ON predicoes_proximo(concurso_previsto);
@@ -201,6 +231,7 @@ def insert_pred(
     concurso_previsto: int,
     tamanho: int,
     ordem: int,
+    mes_sorte: int,
     dezenas: List[int],
     score_final: float,
     score_hub: float,
@@ -215,11 +246,11 @@ def insert_pred(
     brains_ativos: int,
 ) -> bool:
     dezenas_sorted = sorted(int(x) for x in dezenas)
-    payload = dezenas_sorted + [None] * (18 - len(dezenas_sorted))
+    payload = dezenas_sorted + [None] * (DIA_DE_SORTE_RULES.jogo_max_dezenas - len(dezenas_sorted))
 
     cols = [
-        "concurso_previsto", "tamanho", "ordem",
-        "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15", "d16", "d17", "d18",
+        "concurso_previsto", "tamanho", "ordem", "mes_sorte",
+        "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15",
         "score_final", "score_hub", "score_freq", "score_mem", "score_shape",
         "perfil", "janela", "per_brain", "top_n", "max_sim", "brains_ativos", "timestamp",
     ]
@@ -228,10 +259,10 @@ def insert_pred(
         int(concurso_previsto),
         int(tamanho),
         int(ordem),
+        int(mes_sorte),
         payload[0], payload[1], payload[2], payload[3], payload[4],
         payload[5], payload[6], payload[7], payload[8], payload[9],
         payload[10], payload[11], payload[12], payload[13], payload[14],
-        payload[15], payload[16], payload[17],
         float(score_final),
         float(score_hub),
         float(score_freq),
@@ -319,12 +350,10 @@ def score_shape(jogo: List[int], size: int) -> float:
     ev = count_even(jogo)
     run = max_consecutive_run(jogo)
 
-    if size == 15:
-        pares_ok = 1.0 if 6 <= ev <= 9 else 0.6
-        run_ok = 1.0 if run <= 4 else 0.6
-    else:
-        pares_ok = 1.0 if 7 <= ev <= 11 else 0.6
-        run_ok = 1.0 if run <= 5 else 0.6
+    even_target = max(2, size // 2)
+    pares_ok = 1.0 if abs(ev - even_target) <= 1 else 0.6
+    run_limit = 3 if size <= 9 else 4 if size <= 12 else 5
+    run_ok = 1.0 if run <= run_limit else 0.6
 
     return 0.5 * pares_ok + 0.5 * run_ok
 
@@ -363,7 +392,7 @@ def get_profile_weights(perfil: str) -> Tuple[float, float, float, float, float]
         # mais “forma” + frequência, mais proteção de núcleo
         return (0.45, 0.22, 0.10, 0.13, 0.10)
     if perfil == "agressivo":
-        # confia mais na memória 14/15, mas mantém proteção
+        # confia mais na memória 6/7, mas mantém proteção
         return (0.50, 0.12, 0.25, 0.05, 0.08)
     # balanceado
     if perfil == "balanceado":
@@ -389,6 +418,14 @@ def build_core_c(context: Dict[str, Any], janela: int = 120) -> List[int]:
     return [d for d, _ in ranked[:5]]
 
 
+def default_core_seed(count: int) -> List[int]:
+    if count <= 0:
+        return []
+    step = DIA_DE_SORTE_RULES.universo_max / float(count + 1)
+    core = [max(1, min(DIA_DE_SORTE_RULES.universo_max, int(round(step * i)))) for i in range(1, count + 1)]
+    return sorted(set(core))
+
+
 def ran_penalty(
     jogo: List[int],
     core_a: List[int],
@@ -399,11 +436,11 @@ def ran_penalty(
     hit_b = len(set(jogo) & set(core_b))
     hit_c = len(set(jogo) & set(core_c))
     penalty = 0.0
-    if hit_a < 4:
+    if hit_a < max(2, len(core_a) - 1):
         penalty += 0.45
-    if hit_b < 8:
+    if hit_b < max(3, len(core_b) - 2):
         penalty += 0.30
-    if hit_c < 3:
+    if hit_c < max(2, len(core_c) - 1):
         penalty += 0.15
     return min(0.9, penalty)
 
@@ -494,10 +531,10 @@ def generate_for_size(
 
     context = build_context(conn, concurso_n=ultimo_concurso, janela_recente=janela)
     freq = context.get("freq_recente", {}) or {}
-    memoria_1415 = fetch_memoria_top(conn, min_pontos=14, limit=500)
+    memoria_67 = fetch_memoria_top(conn, min_pontos=6, limit=500)
 
-    core_a = [6, 7, 12, 18, 23]
-    core_b = [1, 4, 5, 9, 13, 17, 20, 21, 22, 25]
+    core_a = default_core_seed(5)
+    core_b = default_core_seed(8)
     core_c = build_core_c(context, janela=120)
 
     pair_scores: Dict[Tuple[int, int], int] = {}
@@ -550,6 +587,7 @@ def generate_for_size(
 
     ranked: List[Dict[str, Any]] = []
     ran_cortados = 0
+    freq_meses = fetch_mes_freq(conn)
 
     for c in candidatos:
         jogo = [int(x) for x in c["jogo"]]
@@ -560,7 +598,7 @@ def generate_for_size(
 
         s_hub = float(c.get("score", 0.0))
         s_freq = score_freq_recente(jogo, freq)
-        s_mem = score_memoria(jogo, memoria_1415)
+        s_mem = score_memoria(jogo, memoria_67)
         s_shape = score_shape(jogo, size)
         s_ran = ran_penalty(jogo, core_a, core_b, core_c)
 
@@ -599,9 +637,13 @@ def generate_for_size(
     final = diversify_ranked(ranked, top_k=qtd, max_sim=max_sim)
     strongest = ranked[: max(0, int(qtd_strong))]
 
-    compacted_15 = 0
-    if base_size != size and size == 15:
-        compacted_15 = len(final)
+    for item in final + strongest:
+        if "mes_sorte" not in item:
+            item["mes_sorte"] = escolher_mes_sorte(freq_meses)
+
+    compacted_size = 0
+    if base_size != size:
+        compacted_size = len(final)
 
     reports_dir = ROOT / "reports"
     reports_dir.mkdir(parents=True, exist_ok=True)
@@ -634,9 +676,10 @@ def generate_for_size(
     print(f"\n✅ Jogos finais (priorizados) — size={size} | perfil={perfil}\n")
     for i, item in enumerate(final, 1):
         jogo = item["jogo"]
-        print(f"JOGO {i:02d}: {jogo} | score={item['score_final']:.4f} | fonte={item['brain_id']}")
+        mes_nome = MESES_SORTE[item["mes_sorte"] - 1] if item.get("mes_sorte") else "N/D"
+        print(f"JOGO {i:02d}: {jogo} | mês={mes_nome} | score={item['score_final']:.4f} | fonte={item['brain_id']}")
 
-        lines.append(f"JOGO {i:02d}: {jogo}")
+        lines.append(f"JOGO {i:02d}: {jogo} | mês={mes_nome}")
         lines.append(
             f"  score_final={item['score_final']:.6f} | hub={item['score_hub']:.6f} | "
             f"freq={item['score_freq']:.6f} | mem={item['score_mem']:.6f} | shape={item['score_shape']:.6f} | "
@@ -651,8 +694,9 @@ def generate_for_size(
         lines.append("=========================================\n")
         for i, item in enumerate(strongest, 1):
             jogo = item["jogo"]
-            print(f"FORTE {i:02d}: {jogo} | score={item['score_final']:.4f} | fonte={item['brain_id']}")
-            lines.append(f"FORTE {i:02d}: {jogo}")
+            mes_nome = MESES_SORTE[item["mes_sorte"] - 1] if item.get("mes_sorte") else "N/D"
+            print(f"FORTE {i:02d}: {jogo} | mês={mes_nome} | score={item['score_final']:.4f} | fonte={item['brain_id']}")
+            lines.append(f"FORTE {i:02d}: {jogo} | mês={mes_nome}")
             lines.append(
                 f"  score_final={item['score_final']:.6f} | hub={item['score_hub']:.6f} | "
                 f"freq={item['score_freq']:.6f} | mem={item['score_mem']:.6f} | shape={item['score_shape']:.6f} | "
@@ -674,7 +718,7 @@ def generate_for_size(
         "size": size,
         "base_size": base_size,
         "ran_cortados": ran_cortados,
-        "compactados_15": compacted_15,
+        "compactados": compacted_size,
         "compactados_candidatos": compacted_candidates,
         "brain_distribution_pos_quota": dict(brain_dist_pos_quota),
         "quota_enabled": quota_enabled,
@@ -694,6 +738,7 @@ def generate_for_size(
                 concurso_previsto=proximo_concurso,
                 tamanho=size,
                 ordem=ordem,
+                mes_sorte=int(item.get("mes_sorte") or escolher_mes_sorte(freq_meses)),
                 dezenas=item["jogo"],
                 score_final=item["score_final"],
                 score_hub=item["score_hub"],
@@ -720,12 +765,12 @@ def generate_for_size(
 # ==========================
 def main() -> None:
     parser = argparse.ArgumentParser(description="Gerar jogos para o próximo concurso usando BrainHub + memória + contexto.")
-    parser.add_argument("--size", type=int, default=15, help="Tamanho do jogo principal (15, 16, 18 ou 19).")
+    parser.add_argument("--size", type=int, default=DIA_DE_SORTE_RULES.jogo_min_dezenas, help="Tamanho do jogo principal (7 a 15).")
     parser.add_argument("--qtd", type=int, default=10, help="Quantidade de jogos finais do tamanho principal.")
     parser.add_argument("--qtd-strong", type=int, default=1, help="Quantidade de jogos fortes extras (top score).")
-    parser.add_argument("--second-size", type=int, default=None, help="Segundo tamanho opcional (15, 16, 18 ou 19).")
+    parser.add_argument("--second-size", type=int, default=None, help="Segundo tamanho opcional (7 a 15).")
     parser.add_argument("--second-qtd", type=int, default=None, help="Quantidade de jogos do segundo tamanho.")
-    parser.add_argument("--base-size", type=int, default=None, help="Tamanho base para compactação (ex: 19).")
+    parser.add_argument("--base-size", type=int, default=None, help="Tamanho base para compactação (>= size).")
     parser.add_argument("--janela", type=int, default=300, help="Janela de histórico para contexto.")
     parser.add_argument("--per-brain", type=int, default=120, help="Candidatos por cérebro.")
     parser.add_argument("--top-n", type=int, default=250, help="Top candidatos após BrainHub (antes do re-ranking).")
@@ -773,12 +818,14 @@ def main() -> None:
         log("=========================================")
 
         size = int(args.size)
-        if size not in (15, 16, 18, 19):
-            size = 15
+        if size < DIA_DE_SORTE_RULES.jogo_min_dezenas or size > DIA_DE_SORTE_RULES.jogo_max_dezenas:
+            size = DIA_DE_SORTE_RULES.jogo_min_dezenas
 
         base_size = int(args.base_size) if args.base_size is not None else size
-        if base_size not in (15, 16, 18, 19):
+        if base_size < size:
             base_size = size
+        if base_size > DIA_DE_SORTE_RULES.jogo_max_dezenas:
+            base_size = DIA_DE_SORTE_RULES.jogo_max_dezenas
 
         generate_for_size(
             conn=conn,
@@ -805,8 +852,8 @@ def main() -> None:
 
         if args.second_size is not None and args.second_qtd is not None:
             second_size = int(args.second_size)
-            if second_size not in (15, 16, 18, 19):
-                second_size = 18
+            if second_size < DIA_DE_SORTE_RULES.jogo_min_dezenas or second_size > DIA_DE_SORTE_RULES.jogo_max_dezenas:
+                second_size = DIA_DE_SORTE_RULES.jogo_min_dezenas
 
             generate_for_size(
                 conn=conn,

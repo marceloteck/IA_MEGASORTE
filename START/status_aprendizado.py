@@ -20,7 +20,7 @@ try:
     from config.paths import DB_PATH
 except Exception:
     # fallback seguro
-    DB_PATH = ROOT / "data" / "BD" / "lotofacil.db"
+    DB_PATH = ROOT / "data" / "BD" / "dia_de_sorte.db"
 
 
 def now_str() -> str:
@@ -153,11 +153,11 @@ def main() -> None:
         if tent_range and (tent_range[0] is not None or tent_range[1] is not None):
             print(f"Faixa de concursos treinados (N): {fmt_int(tent_range[0])} .. {fmt_int(tent_range[1])}")
 
-        # melhores acertos já vistos (15/18)
+        # melhores acertos já vistos (7/15)
+        best7 = q_one(conn, "SELECT MAX(acertos) FROM tentativas WHERE tipo_jogo=7")
         best15 = q_one(conn, "SELECT MAX(acertos) FROM tentativas WHERE tipo_jogo=15")
-        best18 = q_one(conn, "SELECT MAX(acertos) FROM tentativas WHERE tipo_jogo=18")
+        print(f"Melhor acerto já visto (jogo 7): {fmt_int(best7[0] if best7 else None)}")
         print(f"Melhor acerto já visto (jogo 15): {fmt_int(best15[0] if best15 else None)}")
-        print(f"Melhor acerto já visto (jogo 18): {fmt_int(best18[0] if best18 else None)}")
 
         # distribuição de acertos (top)
         dist = q_all(
@@ -179,7 +179,7 @@ def main() -> None:
                 print(f"    {fmt_int(ac)} pts -> {fmt_int(qtd)}")
 
         # --------------------------
-        # 4) Memória forte (>=11)
+        # 4) Memória forte (>=5)
         # --------------------------
         print_header("4) MEMÓRIA FORTE (memoria_jogos)")
         mem_total = q_one(conn, "SELECT COUNT(*) FROM memoria_jogos")
@@ -251,24 +251,23 @@ def main() -> None:
                 SELECT c.brain_id,
                        SUM(p.jogos_gerados) AS jogos,
                        AVG(p.media_pontos) AS media,
-                       SUM(p.qtd_11) AS q11,
-                       SUM(p.qtd_12) AS q12,
-                       SUM(p.qtd_13) AS q13,
-                       SUM(p.qtd_14) AS q14,
-                       SUM(p.qtd_15) AS q15
+                       SUM(p.qtd_4) AS q4,
+                       SUM(p.qtd_5) AS q5,
+                       SUM(p.qtd_6) AS q6,
+                       SUM(p.qtd_7) AS q7
                 FROM cerebro_performance p
                 JOIN cerebros c ON c.id = p.cerebro_id
                 GROUP BY c.brain_id
-                ORDER BY q15 DESC, q14 DESC, media DESC
+                ORDER BY q7 DESC, q6 DESC, media DESC
                 LIMIT 30
                 """
             )
             if perf:
-                print("\nTop cérebros (ordenado por 15, 14, média):")
-                for brain_id, jogos, media, q11, q12, q13, q14, q15 in perf:
+                print("\nTop cérebros (ordenado por 7, 6, média):")
+                for brain_id, jogos, media, q4, q5, q6, q7 in perf:
                     print(
                         f"  {brain_id:35s} | jogos={fmt_int(jogos)} | média={fmt_float(media)}"
-                        f" | 14+={fmt_int(q14)} | 15={fmt_int(q15)}"
+                        f" | 6+={fmt_int(q6)} | 7={fmt_int(q7)}"
                     )
             else:
                 print("Sem dados de performance ainda (normal no começo).")

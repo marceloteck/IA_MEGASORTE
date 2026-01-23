@@ -6,16 +6,10 @@ from collections import Counter
 from typing import Any, Dict, List, Tuple
 
 from training.core.base_brain import BaseBrain
-from training.brains._utils import UNIVERSO, count_even
+from training.brains._utils import UNIVERSO, build_faixas, count_even
 
 
-FAIXAS = [
-    (1, 5),
-    (6, 10),
-    (11, 15),
-    (16, 20),
-    (21, 25),
-]
+FAIXAS = build_faixas()
 
 
 def faixa_of(d: int) -> int:
@@ -121,7 +115,7 @@ class StatParidadeFaixasBrain(BaseBrain):
 
     def score_game(self, jogo: List[int], context: Dict[str, Any]) -> float:
         ev = count_even(jogo)
-        fa = [0] * 5
+        fa = [0] * len(FAIXAS)
         for d in jogo:
             fa[faixa_of(d)] += 1
 
@@ -141,13 +135,13 @@ class StatParidadeFaixasBrain(BaseBrain):
     ) -> None:
         self.learn_steps += 1
 
-        if pontos < 11:
+        if pontos < 4:
             return
 
-        peso = 3 if pontos >= 14 else 1
+        peso = 3 if pontos >= 6 else 1
 
         ev = count_even(jogo)
-        fa = [0] * 5
+        fa = [0] * len(FAIXAS)
         for d in jogo:
             fa[faixa_of(d)] += 1
 

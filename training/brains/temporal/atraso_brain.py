@@ -5,6 +5,7 @@ from typing import Any, Dict, List
 import random
 
 from training.core.base_brain import BaseBrain
+from config.game import DIA_DE_SORTE_RULES
 from training.brains._utils import UNIVERSO, weighted_sample_without_replacement
 
 
@@ -47,8 +48,8 @@ class TemporalAtrasoBrain(BaseBrain):
     def generate(self, context: Dict[str, Any], size: int, n: int) -> List[List[int]]:
         size = int(size)
         n = int(n)
-        if size not in (15, 18):
-            size = 15
+        if size < DIA_DE_SORTE_RULES.jogo_min_dezenas or size > DIA_DE_SORTE_RULES.jogo_max_dezenas:
+            size = DIA_DE_SORTE_RULES.jogo_max_dezenas
 
         concurso_ref = int(context.get("concurso_n", self.ultimo_concurso_visto or 0))
         if concurso_ref <= 0:
@@ -59,7 +60,7 @@ class TemporalAtrasoBrain(BaseBrain):
         ranked = sorted(UNIVERSO, key=lambda d: atrasos[d], reverse=True)
 
         # core de atrasadas
-        core_size = 16 if size == 15 else 20
+        core_size = max(size + 4, int(round(len(UNIVERSO) * 0.6)))
         core = ranked[:core_size] if ranked else UNIVERSO[:]
 
         jogos: List[List[int]] = []
@@ -101,7 +102,7 @@ class TemporalAtrasoBrain(BaseBrain):
             s += float(max(0, concurso_ref - int(self.last_seen.get(int(d), 0))))
 
         # normalização simples: divide por um fator fixo
-        return s / (float(len(jogo)) * 25.0)
+        return s / (float(len(jogo)) * float(DIA_DE_SORTE_RULES.universo_max))
 
     def learn(
         self,

@@ -83,10 +83,10 @@ def guess_csv_path(root: Path) -> Path | None:
     Ajuste os nomes se você usa outro padrão.
     """
     candidates = [
-        root / "data" / "Lotofacil.csv",
-        root / "data" / "lotofacil.csv",
+        root / "data" / "DiaDeSorte.csv",
+        root / "data" / "diadesorte.csv",
         root / "data" / "concursos.csv",
-        root / "Lotofacil.csv",
+        root / "DiaDeSorte.csv",
         root / "concursos.csv",
     ]
     for p in candidates:
@@ -129,7 +129,7 @@ def main():
         if csv_path is None:
             log("❌ CSV_PATH não encontrado no config e nenhum CSV foi localizado por fallback.")
             log(f"   Raiz detectada: {PROJECT_ROOT}")
-            log("   Dica: crie config/paths.py com CSV_PATH, ou coloque o CSV em data/Lotofacil.csv")
+            log("   Dica: crie config/paths.py com CSV_PATH, ou coloque o CSV em data/DiaDeSorte.csv")
             sys.exit(1)
 
         csv_path = Path(csv_path)
@@ -151,8 +151,8 @@ def main():
         except Exception:
             df = pd.read_csv(csv_path, sep=None, engine="python")
 
-        if df.shape[1] < 16:
-            raise ValueError(f"CSV com colunas insuficientes. Esperado 16+ (concurso + 15 dezenas). Veio: {df.shape[1]}")
+        if df.shape[1] < 8:
+            raise ValueError(f"CSV com colunas insuficientes. Esperado 8+ (concurso + 7 dezenas + mes). Veio: {df.shape[1]}")
 
         # 3) Maior concurso no DB
         cur.execute("SELECT MAX(concurso) FROM concursos")
@@ -167,14 +167,25 @@ def main():
             if concurso <= max_db:
                 continue
 
-            dezenas = [int(r.iloc[i]) for i in range(1, 16)]
+            dezenas = [int(r.iloc[i]) for i in range(1, 8)]
+            mes_raw = r.iloc[8] if len(r) > 8 else None
+            _, meses_map = safe_import_game()
+            mes_sorte = None
+            if mes_raw is not None and str(mes_raw).strip():
+                mes_text = str(mes_raw).strip().lower()
+                mes_sorte = meses_map.get(mes_text)
+                if mes_sorte is None:
+                    try:
+                        mes_sorte = int(mes_raw)
+                    except ValueError:
+                        mes_sorte = None
             cur.execute(
                 """
                 INSERT OR IGNORE INTO concursos (
-                    concurso,d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12,d13,d14,d15
-                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    concurso,d1,d2,d3,d4,d5,d6,d7,mes_sorte
+                ) VALUES (?,?,?,?,?,?,?,?,?)
                 """,
-                [concurso] + dezenas
+                [concurso] + dezenas + [mes_sorte]
             )
             # no sqlite, rowcount pode ser 0 quando IGNORE; ainda assim é ok
             if cur.rowcount and cur.rowcount > 0:
@@ -187,12 +198,17 @@ def main():
         log("📊 Atualizando frequencias...")
         cur.execute("DELETE FROM frequencias")
 
-        contagem = {i: 0 for i in range(1, 26)}
-        cur.execute("SELECT d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12,d13,d14,d15 FROM concursos")
+        rules, _ = safe_import_game()
+        universo_max = rules.universo_max if rules else 31
+        contagem = {i: 0 for i in range(1, universo_max + 1)}
+        contagem_meses = {i: 0 for i in range(1, 13)}
+        cur.execute("SELECT d1,d2,d3,d4,d5,d6,d7,mes_sorte FROM concursos")
         rows = cur.fetchall()
         for rr in rows:
-            for dez in rr:
+            for dez in rr[:7]:
                 contagem[int(dez)] += 1
+            if rr[7]:
+                contagem_meses[int(rr[7])] += 1
 
         total = sum(contagem.values())
         for numero, qtd in contagem.items():
@@ -203,6 +219,18 @@ def main():
             )
         conn.commit()
         log("✅ Frequencias atualizadas")
+
+        log("📊 Atualizando frequencias de meses...")
+        cur.execute("DELETE FROM frequencias_meses")
+        total_meses = sum(contagem_meses.values())
+        for mes, qtd in contagem_meses.items():
+            peso = (qtd / total_meses) if total_meses else 0.0
+            cur.execute(
+                "INSERT INTO frequencias_meses (mes, quantidade, peso, atualizado_em) VALUES (?,?,?,?)",
+                (mes, qtd, peso, now())
+            )
+        conn.commit()
+        log("✅ Frequencias de meses atualizadas")
 
         log("🎉 Atualização concluída")
 
@@ -219,3 +247,9 @@ def main():
 
 if __name__ == "__main__":
     main()
+def safe_import_game():
+    try:
+        from config.game import DIA_DE_SORTE_RULES, MESES_SORTE_MAP  # type: ignore
+        return DIA_DE_SORTE_RULES, MESES_SORTE_MAP
+    except Exception:
+        return None, {}

@@ -5,6 +5,7 @@ import random
 from collections import Counter
 from typing import Any, Dict, List, Tuple
 
+from config.game import DIA_DE_SORTE_RULES
 from training.core.base_brain import BaseBrain
 from training.brains._utils import UNIVERSO, weighted_sample_without_replacement, count_even, max_consecutive_run
 
@@ -15,17 +16,17 @@ def _pair(a: int, b: int) -> Tuple[int, int]:
 
 class StatEliteMemoryBrain(BaseBrain):
     """
-    Cérebro Estatístico: Elite Memory (14/15) + Memória Forte (11+)
+    Cérebro Estatístico: Elite Memory (6/7) + Memória Forte (5+)
     ----------------------------------------------------------------
     Fonte oficial de aprendizado: tabela memoria_jogos do SQLite.
 
     O que ele faz:
     - Lê incrementalmente memoria_jogos (somente novos IDs) e aprende padrões reais
-    - Dá peso muito maior para acertos >= 14
+    - Dá peso muito maior para acertos >= 6
     - Mantém:
-        * elite_freq: frequência das dezenas em jogos 14+
-        * strong_freq: frequência das dezenas em jogos 11+
-        * elite_pairs: pares fortes dentro dos jogos 14+
+        * elite_freq: frequência das dezenas em jogos 6+
+        * strong_freq: frequência das dezenas em jogos 5+
+        * elite_pairs: pares fortes dentro dos jogos 6+
     - Gera jogos:
         * começa com núcleo elite (vários picks)
         * completa com dezenas fortes + recência do contexto
@@ -39,15 +40,15 @@ class StatEliteMemoryBrain(BaseBrain):
     def __init__(
         self,
         db_conn,
-        min_strong: int = 11,
-        min_elite: int = 14,
+        min_strong: int = 5,
+        min_elite: int = 6,
         keep_pairs: int = 1200,
         version: str = "v1",
     ):
         super().__init__(
             db_conn=db_conn,
             brain_id="stat_elite_memory",
-            name="Stat - Elite Memory (memoria_jogos 14/15)",
+            name="Stat - Elite Memory (memoria_jogos 6/7)",
             category="estatistico",
             version=version,
         )
@@ -60,8 +61,8 @@ class StatEliteMemoryBrain(BaseBrain):
         self.last_mem_id: int = 0
 
         # Memórias internas (leves e fortes)
-        self.strong_freq: Counter[int] = Counter()   # jogos >= 11
-        self.elite_freq: Counter[int] = Counter()    # jogos >= 14
+        self.strong_freq: Counter[int] = Counter()   # jogos >= 5
+        self.elite_freq: Counter[int] = Counter()    # jogos >= 6
         self.elite_pairs: Counter[Tuple[int, int]] = Counter()
 
         self.learn_steps: int = 0
@@ -86,8 +87,8 @@ class StatEliteMemoryBrain(BaseBrain):
     def generate(self, context: Dict[str, Any], size: int, n: int) -> List[List[int]]:
         size = int(size)
         n = int(n)
-        if size not in (15, 18):
-            size = 15
+        if size < DIA_DE_SORTE_RULES.jogo_min_dezenas or size > DIA_DE_SORTE_RULES.jogo_max_dezenas:
+            size = DIA_DE_SORTE_RULES.jogo_max_dezenas
 
         # sincroniza sempre um pouquinho (incremental) para manter atualizado
         self._sync_from_db(limit_rows=1200)
@@ -112,7 +113,7 @@ class StatEliteMemoryBrain(BaseBrain):
             jogo = set()
 
             # 1) núcleo elite
-            k_elite = 6 if size == 15 else 7
+            k_elite = max(3, int(round(size * 0.4)))
             elite_pool = [d for d in elite_rank if d not in jogo]
             if elite_pool:
                 k_elite = min(k_elite, len(elite_pool))
@@ -303,7 +304,7 @@ class StatEliteMemoryBrain(BaseBrain):
         cur.execute(
             f"""
             SELECT id, acertos,
-                   d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12,d13,d14,d15,d16,d17,d18
+                   d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12,d13,d14,d15
             FROM memoria_jogos
             WHERE id > ?
             ORDER BY id ASC
@@ -343,14 +344,14 @@ class StatEliteMemoryBrain(BaseBrain):
 
     def _target_even(self, context: Dict[str, Any], size: int) -> int:
         size = int(size)
-        base = 7 if size == 15 else 9
+        base = max(3, size // 2)
         last = context.get("ultimo_resultado") or []
         if last:
             ev = count_even(list(last))
             t = int(round(0.60 * base + 0.40 * ev))
         else:
             t = base
-        return int(max(3, min(size - 3, t)))
+        return int(max(2, min(size - 2, t)))
 
     def _polish(self, jogo: List[int], size: int, target_even: int, context: Dict[str, Any]) -> List[int]:
         """

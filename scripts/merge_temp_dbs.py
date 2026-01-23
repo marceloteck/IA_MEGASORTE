@@ -6,7 +6,7 @@ from datetime import datetime
 
 ROOT = Path(__file__).resolve().parents[1]
 TEMP_DIR = ROOT / "data" / "BD" / "temp"
-MAIN_DB = ROOT / "data" / "BD" / "lotofacil.db"
+MAIN_DB = ROOT / "data" / "BD" / "dia_de_sorte.db"
 
 # regra: só importar memoria_jogos 14+
 MIN_ACERTOS = 14
@@ -53,12 +53,12 @@ def merge_one(temp_db: Path, main_conn: sqlite3.Connection) -> bool:
                 """
                 INSERT OR IGNORE INTO memoria_jogos (
                   concurso_n, concurso_n1, tipo_jogo,
-                  d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12,d13,d14,d15,d16,d17,d18,
+                  d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12,d13,d14,d15,
                   acertos, peso, origem, timestamp
                 )
                 SELECT
                   concurso_n, concurso_n1, tipo_jogo,
-                  d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12,d13,d14,d15,d16,d17,d18,
+                  d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12,d13,d14,d15,
                   acertos, peso, origem, timestamp
                 FROM tdb.memoria_jogos
                 WHERE acertos >= ?
@@ -187,7 +187,7 @@ def main():
             try:
                 recovered = recover_database_built_in(MAIN_DB)
                 print(f"✅ Recuperado em: {recovered}")
-                print("➡️ Agora você pode substituir manualmente lotofacil.db pelo lotofacil_recovered.db")
+                print("➡️ Agora você pode substituir manualmente dia_de_sorte.db pelo dia_de_sorte_recovered.db")
             except Exception as e:
                 print(f"❌ Falha na recuperação automática: {e}")
                 print("➡️ Próximo passo: usar o comando sqlite3 .recover (te explico se precisar).")

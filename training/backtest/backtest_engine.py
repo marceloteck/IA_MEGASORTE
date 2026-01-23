@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from config.game import DIA_DE_SORTE_RULES
 from data.BD.connection import get_conn
 from training.core.brain_hub import BrainHub
 from training.utils.comparador import contar_acertos
@@ -28,7 +29,7 @@ from training.utils.comparador import contar_acertos
 # ==========================
 DEFAULT_BLOCK_SIZE = 250
 DEFAULT_SAVE_EVERY = 10
-DEFAULT_MIN_MEM = 12
+DEFAULT_MIN_MEM = DIA_DE_SORTE_RULES.memoria_min_acertos
 DEFAULT_MAX_SIM = 0.78
 
 # Candidatos / custo
@@ -115,7 +116,7 @@ def fetch_result(conn: sqlite3.Connection, concurso: int) -> Optional[List[int]]
     cur = conn.cursor()
     cur.execute(
         """
-        SELECT d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12,d13,d14,d15
+        SELECT d1,d2,d3,d4,d5,d6,d7
         FROM concursos
         WHERE concurso=?
         """,
@@ -131,7 +132,7 @@ def fetch_recent_results(conn: sqlite3.Connection, concurso_n: int, janela: int)
     cur = conn.cursor()
     cur.execute(
         """
-        SELECT d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12,d13,d14,d15
+        SELECT d1,d2,d3,d4,d5,d6,d7
         FROM concursos
         WHERE concurso <= ?
         ORDER BY concurso DESC
@@ -147,7 +148,7 @@ def fetch_recent_results(conn: sqlite3.Connection, concurso_n: int, janela: int)
 def build_context(conn: sqlite3.Connection, concurso_n: int, janela_recente: int) -> Dict[str, Any]:
     historico = fetch_recent_results(conn, concurso_n, janela_recente)
     ultimo = historico[-1] if historico else (fetch_result(conn, concurso_n) or [])
-    freq: Dict[int, int] = {i: 0 for i in range(1, 26)}
+    freq: Dict[int, int] = {i: 0 for i in range(1, DIA_DE_SORTE_RULES.universo_max + 1)}
     for r in historico:
         for d in r:
             freq[int(d)] += 1
@@ -176,16 +177,16 @@ def insert_tentativa(
     timestamp: str,
 ) -> None:
     """
-    Insere em 'tentativas' usando o formato d1..d18.
+    Insere em 'tentativas' usando o formato d1..d15.
     BLINDADO contra mismatch de colunas/values.
     """
     dezenas_sorted = sorted(int(x) for x in dezenas if x is not None)
-    payload = dezenas_sorted + [None] * (18 - len(dezenas_sorted))
-    payload = payload[:18]
+    payload = dezenas_sorted + [None] * (DIA_DE_SORTE_RULES.jogo_max_dezenas - len(dezenas_sorted))
+    payload = payload[: DIA_DE_SORTE_RULES.jogo_max_dezenas]
 
     cols = (
         ["concurso_n", "concurso_n1", "tipo_jogo", "tentativa"]
-        + [f"d{i}" for i in range(1, 19)]
+        + [f"d{i}" for i in range(1, DIA_DE_SORTE_RULES.jogo_max_dezenas + 1)]
         + ["acertos", "score", "score_tag", "brain_id", "tempo_exec", "timestamp"]
     )
 
@@ -216,8 +217,8 @@ def insert_memoria_forte(
         return False
 
     dezenas_sorted = sorted(int(x) for x in dezenas if x is not None)
-    payload = dezenas_sorted + [None] * (18 - len(dezenas_sorted))
-    payload = payload[:18]
+    payload = dezenas_sorted + [None] * (DIA_DE_SORTE_RULES.jogo_max_dezenas - len(dezenas_sorted))
+    payload = payload[: DIA_DE_SORTE_RULES.jogo_max_dezenas]
 
     cols = (
         ["concurso_n", "concurso_n1", "tipo_jogo"]
@@ -368,14 +369,14 @@ def run_one_concurso(
     """
     Executa:
     - build_context (com cfg.janela)
-    - generate 15/18
+    - generate 7..15
     - avalia vs resultado N+1
     - salva tentativas + memórias
     - aprende no hub
     """
     resultado_n1 = fetch_result(conn, concurso_n + 1)
     if not resultado_n1:
-        return {"mem": 0, "a14": 0, "a15": 0}
+        return {"mem": 0, "a6": 0, "a7": 0}
 
     context = build_context(conn, concurso_n, cfg.janela)
 
@@ -383,33 +384,36 @@ def run_one_concurso(
     RUN_TAG = str(cfg.score_tag)
 
     t0 = time.time()
-    cand15 = hub.generate_games(context=context, size=15, per_brain=cfg.per_brain, top_n=cfg.top_n)
-    cand18 = hub.generate_games(context=context, size=18, per_brain=cfg.per_brain, top_n=cfg.top_n)
+    candidatos_por_tamanho: List[Tuple[int, List[Dict[str, Any]]]] = []
+    for tamanho in range(DIA_DE_SORTE_RULES.jogo_min_dezenas, DIA_DE_SORTE_RULES.jogo_max_dezenas + 1):
+        cand = hub.generate_games(context=context, size=tamanho, per_brain=cfg.per_brain, top_n=cfg.top_n)
+        candidatos_por_tamanho.append((tamanho, cand or []))
     tempo_exec = time.time() - t0
 
     # avalia apenas top K candidatos (controle de custo)
-    cand15 = (cand15 or [])[: int(avaliar_top_k)]
-    cand18 = (cand18 or [])[: int(avaliar_top_k)]
+    candidatos_por_tamanho = [
+        (tamanho, candidatos[: int(avaliar_top_k)]) for tamanho, candidatos in candidatos_por_tamanho
+    ]
 
-    mem = a14 = a15 = 0
+    mem = a6 = a7 = 0
     acertos_max = 0
     tentativa = 1
 
     def _process(cands: List[Dict[str, Any]], tipo: int):
-        nonlocal mem, a14, a15, tentativa, acertos_max
+        nonlocal mem, a6, a7, tentativa, acertos_max
 
         tipo = int(tipo)
 
         for c in cands:
             jogo = [int(x) for x in c.get("jogo", []) if x is not None]
 
-            if len(jogo) < 15:
+            if len(jogo) < DIA_DE_SORTE_RULES.jogo_min_dezenas:
                 continue
 
             jogo = sorted(set(jogo))
 
-            # força exatamente 15/18
-            if tipo in (15, 18) and len(jogo) != tipo:
+            # força tamanho correto
+            if len(jogo) != tipo:
                 if len(jogo) > tipo:
                     jogo = jogo[:tipo]
                 else:
@@ -449,10 +453,10 @@ def run_one_concurso(
             ):
                 mem += 1
 
-            if acertos >= 14:
-                a14 += 1
-            if acertos == 15:
-                a15 += 1
+            if acertos >= 6:
+                a6 += 1
+            if acertos == 7:
+                a7 += 1
 
             hub.learn(
                 concurso_n=concurso_n,
@@ -465,10 +469,10 @@ def run_one_concurso(
 
             tentativa += 1
 
-    _process(cand15, 15)
-    _process(cand18, 18)
+    for tamanho, candidatos in candidatos_por_tamanho:
+        _process(candidatos, tamanho)
 
-    return {"mem": mem, "a14": a14, "a15": a15, "acertos_max": acertos_max}
+    return {"mem": mem, "a6": a6, "a7": a7, "acertos_max": acertos_max}
 
 
 # ==========================
@@ -482,7 +486,7 @@ def main() -> None:
     p.add_argument("--block-size", type=int, default=DEFAULT_BLOCK_SIZE, help="Tamanho do bloco por ciclo (circular).")
     p.add_argument("--save-every", type=int, default=DEFAULT_SAVE_EVERY, help="Salvar estados do hub a cada N concursos.")
     p.add_argument("--min-mem", type=int, default=DEFAULT_MIN_MEM, help="Salvar memoria_jogos a partir deste valor.")
-    p.add_argument("--avaliar-top-k", type=int, default=40, help="Quantos candidatos avaliar por tamanho (15 e 18).")
+    p.add_argument("--avaliar-top-k", type=int, default=40, help="Quantos candidatos avaliar por tamanho (7..15).")
     p.add_argument("--progress-every", type=int, default=5, help="Log de progresso a cada N concursos dentro do bloco.")
     p.add_argument("--seed", type=int, default=None, help="Seed (opcional).")
     p.add_argument("--aggressive", action="store_true", help="Exploração mais pesada (mais candidatos).")
@@ -542,7 +546,7 @@ def main() -> None:
         # ciclo circular
         start_time = time.time()
         steps_done = 0
-        total_mem = total_14 = total_15 = 0
+        total_mem = total_6 = total_7 = 0
 
         # monta lista de N treináveis
         trainable = [c for c in concursos if c <= ultimo_treinavel]
@@ -600,8 +604,8 @@ def main() -> None:
                 )
 
                 total_mem += int(stats["mem"])
-                total_14 += int(stats["a14"])
-                total_15 += int(stats["a15"])
+                total_6 += int(stats["a6"])
+                total_7 += int(stats["a7"])
 
                 steps_done += 1
                 set_backtest_checkpoint(conn, int(concurso_n), etapa="backtest_engine")
@@ -612,7 +616,7 @@ def main() -> None:
                 if i % max(1, int(args.progress_every)) == 0:
                     log(
                         f"↪ progresso bloco: {i}/{len(block)} | steps={steps_done} | "
-                        f"mem+={total_mem} | 14+={total_14} | 15={total_15} | "
+                        f"mem+={total_mem} | 6+={total_6} | 7={total_7} | "
                         f"melhor_acerto={stats.get('acertos_max', 0)}"
                     )
 
@@ -626,8 +630,8 @@ def main() -> None:
         log(f"⏱️ Duração total  : {dur:.2f}s")
         log(f"🔢 Steps          : {steps_done}")
         log(f"💾 Memórias (>=min_mem): {total_mem}")
-        log(f"🔥 14+            : {total_14}")
-        log(f"🏆 15             : {total_15}")
+        log(f"🔥 6+             : {total_6}")
+        log(f"🏆 7              : {total_7}")
         log(f"📌 checkpoint_bt  : {get_backtest_checkpoint(conn)}")
         log("=========================================")
 

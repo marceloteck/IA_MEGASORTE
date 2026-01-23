@@ -5,6 +5,7 @@ import json
 from datetime import datetime
 from typing import Any, Dict, Optional
 
+from config.game import DIA_DE_SORTE_RULES
 from training.core.brain_interface import BrainInterface
 
 def now() -> str:
@@ -90,46 +91,51 @@ class BaseBrain(BrainInterface):
 
         cur = self.db.cursor()
         # busca existente
+        tiers = DIA_DE_SORTE_RULES.performance_tiers
+        col_names = ", ".join([f"qtd_{tier}" for tier in tiers])
+        update_cols = ", ".join([f"qtd_{tier}=?" for tier in tiers])
         cur.execute(
-            "SELECT jogos_gerados, media_pontos, qtd_11, qtd_12, qtd_13, qtd_14, qtd_15 FROM cerebro_performance WHERE cerebro_id=? AND concurso=?",
+            f"SELECT jogos_gerados, media_pontos, {col_names} FROM cerebro_performance WHERE cerebro_id=? AND concurso=?",
             (self._cerebro_pk, int(concurso))
         )
         row = cur.fetchone()
 
         if row:
-            jg, media, q11, q12, q13, q14, q15 = row
+            jg = int(row[0])
+            media = float(row[1])
+            qtds = [int(x) for x in row[2:]]
             jg = int(jg) + int(jogos_gerados)
             media = (float(media) * (jg - jogos_gerados) + pontos) / jg
-            q11 = int(q11) + (1 if pontos >= 11 else 0)
-            q12 = int(q12) + (1 if pontos >= 12 else 0)
-            q13 = int(q13) + (1 if pontos >= 13 else 0)
-            q14 = int(q14) + (1 if pontos >= 14 else 0)
-            q15 = int(q15) + (1 if pontos >= 15 else 0)
+            qtds = [
+                qtd + (1 if pontos >= tier else 0)
+                for qtd, tier in zip(qtds, tiers)
+            ]
 
-            cur.execute(
-                """
-                UPDATE cerebro_performance
-                SET jogos_gerados=?, media_pontos=?, qtd_11=?, qtd_12=?, qtd_13=?, qtd_14=?, qtd_15=?, atualizado_em=?
-                WHERE cerebro_id=? AND concurso=?
-                """,
-                (jg, media, q11, q12, q13, q14, q15, now(), self._cerebro_pk, int(concurso))
+            update_sql = (
+                "UPDATE cerebro_performance "
+                f"SET jogos_gerados=?, media_pontos=?, {update_cols}, atualizado_em=? "
+                "WHERE cerebro_id=? AND concurso=?"
             )
+            cur.execute(update_sql, (jg, media, *qtds, now(), self._cerebro_pk, int(concurso)))
         else:
+            insert_cols = ", ".join(
+                ["cerebro_id", "concurso", "jogos_gerados", "media_pontos"] + [f"qtd_{tier}" for tier in tiers] + ["atualizado_em"]
+            )
+            placeholders = ",".join(["?"] * (4 + len(tiers) + 1))
+            insert_sql = f"INSERT INTO cerebro_performance ({insert_cols}) VALUES ({placeholders})"
             cur.execute(
-                """
-                INSERT INTO cerebro_performance (
-                    cerebro_id, concurso, jogos_gerados, media_pontos, qtd_11, qtd_12, qtd_13, qtd_14, qtd_15, atualizado_em
-                ) VALUES (?,?,?,?,?,?,?,?,?,?)
-                """,
+                insert_sql,
                 (
-                    self._cerebro_pk, int(concurso), int(jogos_gerados), float(pontos),
-                    1 if pontos >= 11 else 0,
-                    1 if pontos >= 12 else 0,
-                    1 if pontos >= 13 else 0,
-                    1 if pontos >= 14 else 0,
-                    1 if pontos >= 15 else 0,
-                    now()
-                )
+                    self._cerebro_pk,
+                    int(concurso),
+                    int(jogos_gerados),
+                    float(pontos),
+                    *[
+                        1 if pontos >= tier else 0
+                        for tier in tiers
+                    ],
+                    now(),
+                ),
             )
         self.db.commit()
 

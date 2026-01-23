@@ -19,7 +19,7 @@ def _resolve_db_path(db_path: str | None) -> Path:
             path = Path(CFG_DB_PATH)
         except Exception:
             root = Path(__file__).resolve().parents[2]
-            path = root / "data" / "BD" / "lotofacil.db"
+            path = root / "data" / "BD" / "dia_de_sorte.db"
 
     return path
 
