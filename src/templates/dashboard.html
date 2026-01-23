@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Trevo4Folhas — Plataforma Lotofácil</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f5f7fb;
+        --surface: #ffffff;
+        --surface-alt: #eef1f7;
+        --text: #1f2937;
+        --muted: #6b7280;
+        --border: #d9e1ee;
+        --primary: #1d4ed8;
+        --primary-soft: #e0ebff;
+        --accent: #56b870;
+        --accent-soft: #e8f7ee;
+        --warning: #f59e0b;
+        --shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+        --radius-lg: 18px;
+        --radius-md: 12px;
+      }
+
+      * {
+        box-sizing: border-box;
+        font-family: "Inter", "Segoe UI", sans-serif;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      a {
+        color: var(--primary);
+        text-decoration: none;
+      }
+
+      .app {
+        display: flex;
+        min-height: 100vh;
+      }
+
+      .sidebar {
+        width: 260px;
+        background: var(--surface);
+        border-right: 1px solid var(--border);
+        padding: 28px 22px;
+        display: flex;
+        flex-direction: column;
+        gap: 28px;
+      }
+
+      .brand {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .brand h1 {
+        margin: 0;
+        font-size: 20px;
+        letter-spacing: 0.2px;
+      }
+
+      .brand p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .nav {
+        display: grid;
+        gap: 10px;
+      }
+
+      .nav a {
+        padding: 10px 12px;
+        border-radius: 10px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        color: var(--text);
+        background: transparent;
+      }
+
+      .nav a.active {
+        background: var(--primary-soft);
+        color: var(--primary);
+        font-weight: 600;
+      }
+
+      .nav a span {
+        font-size: 13px;
+      }
+
+      .sidebar-card {
+        padding: 16px;
+        border-radius: var(--radius-md);
+        background: var(--surface-alt);
+        border: 1px solid var(--border);
+        display: grid;
+        gap: 10px;
+      }
+
+      .sidebar-card h4 {
+        margin: 0;
+        font-size: 14px;
+      }
+
+      .sidebar-card p {
+        margin: 0;
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 22px 36px;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface);
+      }
+
+      .topbar h2 {
+        margin: 0;
+        font-size: 22px;
+      }
+
+      .topbar p {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .topbar-actions {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+
+      .pill {
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 12px;
+        background: var(--accent-soft);
+        color: #247b4b;
+        border: 1px solid rgba(86, 184, 112, 0.4);
+      }
+
+      .container {
+        padding: 28px 36px 40px;
+        display: grid;
+        gap: 24px;
+      }
+
+      .grid {
+        display: grid;
+        gap: 20px;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      }
+
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 20px;
+        box-shadow: var(--shadow);
+      }
+
+      .card h3 {
+        margin: 0 0 12px;
+        font-size: 16px;
+      }
+
+      .card h4 {
+        margin: 0;
+        font-size: 14px;
+      }
+
+      .muted {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .metrics {
+        display: grid;
+        gap: 12px;
+      }
+
+      .metric {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: var(--surface-alt);
+      }
+
+      .metric span {
+        color: var(--muted);
+      }
+
+      .list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+
+      .list li {
+        padding: 8px 0;
+        border-bottom: 1px solid rgba(107, 114, 128, 0.12);
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      .list li strong {
+        color: var(--text);
+      }
+
+      .table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      .table th,
+      .table td {
+        padding: 8px;
+        border-bottom: 1px solid rgba(107, 114, 128, 0.12);
+        font-size: 12px;
+        text-align: left;
+      }
+
+      .table th {
+        color: var(--muted);
+        font-weight: 600;
+      }
+
+      .chip {
+        display: inline-flex;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: var(--surface-alt);
+        color: var(--text);
+        font-size: 11px;
+        gap: 4px;
+        align-items: center;
+      }
+
+      .status {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: var(--surface-alt);
+        color: var(--text);
+        font-size: 13px;
+      }
+
+      .status span {
+        color: var(--muted);
+      }
+
+      form {
+        display: grid;
+        gap: 12px;
+      }
+
+      label {
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      input,
+      select,
+      textarea {
+        width: 100%;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: #fff;
+        color: var(--text);
+      }
+
+      textarea {
+        min-height: 96px;
+        resize: vertical;
+      }
+
+      button {
+        padding: 11px 14px;
+        border-radius: 10px;
+        border: none;
+        background: var(--primary);
+        color: #fff;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      button.secondary {
+        background: var(--surface);
+        color: var(--primary);
+        border: 1px solid var(--primary);
+      }
+
+      .row {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      }
+
+      .cta {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .cta span {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .toggle {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .badge {
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: var(--primary-soft);
+        color: var(--primary);
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .badge.accent {
+        background: var(--accent-soft);
+        color: #1f6b42;
+      }
+
+      .badge.warn {
+        background: #fff3dc;
+        color: #b45309;
+      }
+
+      .footer {
+        padding: 18px 36px 28px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      dialog {
+        border: none;
+        border-radius: var(--radius-lg);
+        padding: 0;
+        box-shadow: var(--shadow);
+        width: min(680px, 90vw);
+      }
+
+      dialog::backdrop {
+        background: rgba(15, 23, 42, 0.45);
+      }
+
+      .modal {
+        padding: 20px 24px 24px;
+        background: var(--surface);
+      }
+
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+      }
+
+      .modal-header h3 {
+        margin: 0;
+      }
+
+      .chart {
+        width: 100%;
+        height: 260px;
+        border-radius: var(--radius-md);
+        background: var(--surface-alt);
+        padding: 12px;
+      }
+
+      @media (max-width: 960px) {
+        .app {
+          flex-direction: column;
+        }
+
+        .sidebar {
+          width: 100%;
+          border-right: none;
+          border-bottom: 1px solid var(--border);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <h1>Trevo4Folhas</h1>
+          <p>Plataforma inteligente para Lotofácil</p>
+        </div>
+        <nav class="nav">
+          <a class="active" href="#overview">📊 <span>Visão geral</span></a>
+          <a href="#jogos">🎯 <span>Montar jogos</span></a>
+          <a href="#avaliacao">🧪 <span>Avaliar desempenho</span></a>
+          <a href="#treino">🧠 <span>Treino incremental</span></a>
+          <a href="#relatorio">📄 <span>Relatório HTML</span></a>
+        </nav>
+        <div class="sidebar-card">
+          <h4>Status rápido</h4>
+          <p>Console sempre atualizado com as últimas execuções.</p>
+          <div class="badge accent">Serviço ativo</div>
+        </div>
+        <div class="sidebar-card">
+          <h4>Acesso multiusuário</h4>
+          <p>Interface amigável para operar em equipe, com navegação simples.</p>
+        </div>
+      </aside>
+
+      <div class="content">
+        <header class="topbar" id="overview">
+          <div>
+            <h2>Console operacional</h2>
+            <p>Acompanhe indicadores, gere jogos e controle o aprendizado contínuo.</p>
+          </div>
+          <div class="topbar-actions">
+            <span class="pill">Lotofácil • IA Trevo4Folhas</span>
+          </div>
+        </header>
+
+        <main class="container">
+          <section class="grid">
+            <div class="card">
+              <h3>Relatório 15 dezenas</h3>
+              {% if relatorio_15 %}
+              <div class="metrics">
+                <div class="metric"><span>Média de acertos</span><strong>{{ relatorio_15.resumo["15"].media_acertos }}</strong></div>
+                <div class="metric"><span>Melhor resultado</span><strong>{{ relatorio_15.resumo["15"].melhor }}</strong></div>
+                <div class="metric"><span>Quase acertos (11-13)</span><strong>{{ relatorio_15.resumo["15"].quase_acertos_11_13 }}</strong></div>
+                <div class="metric"><span>Foco 14/15</span><strong>{{ relatorio_15.resumo["15"].foco_14_15 }}</strong></div>
+              </div>
+              <p class="muted">Atualizado em {{ relatorio_15.timestamp }}</p>
+              {% else %}
+              <p class="muted">Nenhum relatório disponível.</p>
+              {% endif %}
+            </div>
+            <div class="card">
+              <h3>Relatório 18 dezenas</h3>
+              {% if relatorio_18 %}
+              <div class="metrics">
+                <div class="metric"><span>Média de acertos</span><strong>{{ relatorio_18.resumo["18"].media_acertos }}</strong></div>
+                <div class="metric"><span>Melhor resultado</span><strong>{{ relatorio_18.resumo["18"].melhor }}</strong></div>
+                <div class="metric"><span>Quase acertos (11-13)</span><strong>{{ relatorio_18.resumo["18"].quase_acertos_11_13 }}</strong></div>
+                <div class="metric"><span>Foco 14/15</span><strong>{{ relatorio_18.resumo["18"].foco_14_15 }}</strong></div>
+              </div>
+              <p class="muted">Atualizado em {{ relatorio_18.timestamp }}</p>
+              {% else %}
+              <p class="muted">Nenhum relatório disponível.</p>
+              {% endif %}
+            </div>
+            <div class="card">
+              <h3>Status das tarefas</h3>
+              <div class="metrics">
+                <div class="status">
+                  <span>Avaliação</span>
+                  {{ tasks["avaliacao"].status }}
+                </div>
+                <p class="muted">
+                  {{ tasks["avaliacao"].last_message or "Aguardando execução." }}
+                  · <a href="{{ url_for('logs', task_name='avaliacao') }}">Ver log</a>
+                </p>
+                <div class="status">
+                  <span>Treino</span>
+                  {{ tasks["treino"].status }}
+                </div>
+                <p class="muted">
+                  {{ tasks["treino"].last_message or "Aguardando execução." }}
+                  · <a href="{{ url_for('logs', task_name='treino') }}">Ver log</a>
+                </p>
+                <div class="status">
+                  <span>Gerador</span>
+                  {{ tasks["gerar_jogos"].status }}
+                </div>
+                <p class="muted">
+                  {{ tasks["gerar_jogos"].last_message or "Aguardando execução." }}
+                  · <a href="{{ url_for('logs', task_name='gerar_jogos') }}">Ver log</a>
+                </p>
+                <div class="status">
+                  <span>Relatório HTML</span>
+                  {{ tasks["relatorio_html"].status }}
+                </div>
+                <p class="muted">
+                  {{ tasks["relatorio_html"].last_message or "Aguardando execução." }}
+                  · <a href="{{ url_for('logs', task_name='relatorio_html') }}">Ver log</a>
+                </p>
+              </div>
+              <p class="muted">
+                Logs em /reports/*.log
+                {% if relatorio_html_disponivel %}
+                · <a href="{{ url_for('relatorio_html') }}">Abrir relatório HTML</a>
+                {% endif %}
+              </p>
+            </div>
+          </section>
+
+          <section class="grid">
+            <div class="card">
+              <h3>Top cérebros (15 dezenas)</h3>
+              {% if relatorio_15 and relatorio_15.brains %}
+              <ul class="list">
+                {% for brain_id, info in relatorio_15.brains.items() %}
+                {% if loop.index <= 8 %}
+                <li>
+                  <strong>{{ brain_id }}</strong> — Top1: {{ info.top1_15 }} | Gerados: {{ info.generated_15 }} | Média acertos (topK): {{ info.avg_acertos_topk_15 }}
+                </li>
+                {% endif %}
+                {% endfor %}
+              </ul>
+              {% else %}
+              <p class="muted">Sem dados de cérebros.</p>
+              {% endif %}
+            </div>
+            <div class="card">
+              <h3>Top cérebros (18 dezenas)</h3>
+              {% if relatorio_18 and relatorio_18.brains %}
+              <ul class="list">
+                {% for brain_id, info in relatorio_18.brains.items() %}
+                {% if loop.index <= 8 %}
+                <li>
+                  <strong>{{ brain_id }}</strong> — Top1: {{ info.top1_18 }} | Gerados: {{ info.generated_18 }} | Média acertos (topK): {{ info.avg_acertos_topk_18 }}
+                </li>
+                {% endif %}
+                {% endfor %}
+              </ul>
+              {% else %}
+              <p class="muted">Sem dados de cérebros.</p>
+              {% endif %}
+            </div>
+          </section>
+
+          <section class="grid" id="jogos">
+            <div class="card">
+              <h3>Montar jogos personalizados</h3>
+              <form method="post" action="{{ url_for('gerar_jogos') }}">
+                <div class="row">
+                  <div>
+                    <label>Quantidade de dezenas</label>
+                    <select name="size">
+                      <option value="15">15 dezenas</option>
+                      <option value="18">18 dezenas</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label>Perfil</label>
+                    <select name="perfil">
+                      <option value="conservador">Conservador</option>
+                      <option value="balanceado" selected>Balanceado</option>
+                      <option value="agressivo">Agressivo</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label>Quantidade de jogos</label>
+                    <input type="number" name="qtd" value="6" min="1" />
+                  </div>
+                </div>
+                <label>Observações do grupo</label>
+                <textarea placeholder="Ex: priorizar dezenas quentes, limitar repetição..." spellcheck="false"></textarea>
+                <label class="toggle">
+                  <input type="checkbox" name="auto_clear" value="true" checked />
+                  Limpar logs anteriores automaticamente
+                </label>
+                <div class="cta">
+                  <button type="submit" name="salvar_db" value="false">Gerar jogos sugeridos</button>
+                  <button type="submit" name="salvar_db" value="true" class="secondary">Salvar no histórico</button>
+                  <span>Fluxo pronto para uso em equipes.</span>
+                </div>
+              </form>
+            </div>
+            <div class="card">
+              <h3>Banco de dados (jogos salvos)</h3>
+              {% if db_snapshot.available %}
+              <p class="muted">Fonte: {{ db_snapshot.path }}</p>
+              {% if db_snapshot.saved_games %}
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Concurso</th>
+                    <th>Tam.</th>
+                    <th>Jogo</th>
+                    <th>Score</th>
+                    <th>Perfil</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for jogo in db_snapshot.saved_games %}
+                  <tr>
+                    <td>#{{ jogo.concurso_previsto }}</td>
+                    <td>{{ jogo.tamanho }}</td>
+                    <td>{{ jogo.dezenas | join(', ') }}</td>
+                    <td>{{ "%.2f"|format(jogo.score_final) }}</td>
+                    <td>{{ jogo.perfil }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+              {% else %}
+              <p class="muted">Nenhum jogo salvo no histórico ainda.</p>
+              {% endif %}
+              {% else %}
+              <p class="muted">{{ db_snapshot.error }}</p>
+              {% endif %}
+            </div>
+          </section>
+
+          <section class="grid" id="avaliacao">
+            <div class="card">
+              <h3>Executar avaliação (14/15 foco)</h3>
+              <form method="post" action="{{ url_for('avaliar') }}">
+                <div class="row">
+                  <div>
+                    <label>Janela</label>
+                    <input type="number" name="janela" value="300" />
+                  </div>
+                  <div>
+                    <label>Max concursos</label>
+                    <input type="number" name="max_concursos" value="200" />
+                  </div>
+                  <div>
+                    <label>Top N</label>
+                    <input type="number" name="top_n" value="60" />
+                  </div>
+                </div>
+                <div class="row">
+                  <div>
+                    <label>Candidatos (15)</label>
+                    <input type="number" name="candidatos_15" value="120" />
+                  </div>
+                  <div>
+                    <label>Avaliar Top K (15)</label>
+                    <input type="number" name="avaliar_top_k_15" value="60" />
+                  </div>
+                  <div>
+                    <label>Exploração (15)</label>
+                    <input type="text" name="exploration_15" value="0.12" />
+                  </div>
+                </div>
+                <div class="row">
+                  <div>
+                    <label>Candidatos (18)</label>
+                    <input type="number" name="candidatos_18" value="80" />
+                  </div>
+                  <div>
+                    <label>Avaliar Top K (18)</label>
+                    <input type="number" name="avaliar_top_k_18" value="40" />
+                  </div>
+                  <div>
+                    <label>Exploração (18)</label>
+                    <input type="text" name="exploration_18" value="0.08" />
+                  </div>
+                </div>
+                <div>
+                  <label>Simular aprendizado</label>
+                  <select name="simular_aprendizado">
+                    <option value="true" selected>Sim</option>
+                    <option value="false">Não</option>
+                  </select>
+                </div>
+                <label class="toggle">
+                  <input type="checkbox" name="auto_clear" value="true" checked />
+                  Limpar relatórios anteriores automaticamente
+                </label>
+                <div class="cta">
+                  <button type="submit">Rodar avaliação completa</button>
+                  <span class="badge warn">Rotina crítica</span>
+                </div>
+              </form>
+            </div>
+            <div class="card" id="treino">
+              <h3>Iniciar treino incremental</h3>
+              <form method="post" action="{{ url_for('treinar') }}">
+                <div class="row">
+                  <div>
+                    <label>Limite de concursos</label>
+                    <input type="number" name="limite" placeholder="Ex: 50" />
+                  </div>
+                  <div>
+                    <label>Dormir (min)</label>
+                    <input type="number" name="sleep_min" value="30" />
+                  </div>
+                  <div>
+                    <label>Loop contínuo</label>
+                    <select name="loop">
+                      <option value="false" selected>Não</option>
+                      <option value="true">Sim</option>
+                    </select>
+                  </div>
+                </div>
+                <label class="toggle">
+                  <input type="checkbox" name="auto_clear" value="true" checked />
+                  Limpar logs anteriores automaticamente
+                </label>
+                <div class="cta">
+                  <button type="submit" class="secondary">Iniciar treino</button>
+                  <span>Treinamento contínuo para performance em tempo real.</span>
+                </div>
+              </form>
+            </div>
+          </section>
+
+          <section class="grid" id="aprendizado">
+            <div class="card">
+              <h3>Aprendizado histórico</h3>
+              {% if db_snapshot.available %}
+              <div class="metrics">
+                <div class="metric"><span>Memória 11+</span><strong>{{ db_snapshot.learning_summary.memoria_total }}</strong></div>
+                <div class="metric"><span>Acertos 14/15</span><strong>{{ db_snapshot.learning_summary.acertos_14_15 }}</strong></div>
+                <div class="metric"><span>Tentativas salvas</span><strong>{{ db_snapshot.learning_summary.tentativas_total }}</strong></div>
+              </div>
+              <div class="cta" style="margin-top: 12px;">
+                <button type="button" class="secondary" id="open-learning-chart">Abrir gráfico de aprendizado</button>
+                <span class="badge accent">Nível: {{ db_snapshot.learning_chart.nivel }}%</span>
+              </div>
+              {% if db_snapshot.learning_history %}
+              <table class="table" style="margin-top: 12px;">
+                <thead>
+                  <tr>
+                    <th>Concursos</th>
+                    <th>Tipo</th>
+                    <th>Acertos</th>
+                    <th>Score</th>
+                    <th>Brain</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for item in db_snapshot.learning_history %}
+                  <tr>
+                    <td>{{ item.concurso_n }} → {{ item.concurso_n1 }}</td>
+                    <td>{{ item.tipo_jogo }}</td>
+                    <td>{{ item.acertos }}</td>
+                    <td>{{ "%.2f"|format(item.score) }}</td>
+                    <td>{{ item.brain_id }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+              {% else %}
+              <p class="muted" style="margin-top: 12px;">Sem tentativas recentes registradas.</p>
+              {% endif %}
+              {% else %}
+              <p class="muted">{{ db_snapshot.error }}</p>
+              {% endif %}
+            </div>
+            <div class="card">
+              <h3>Status do aprendizado</h3>
+              <p class="muted">
+                {{ "Banco disponível" if db_snapshot.available else "Banco indisponível" }}
+                {% if db_snapshot.available %}
+                — Atualize com START/update_concursos.py para manter a IA atualizada.
+                {% endif %}
+              </p>
+              <ul class="list">
+                <li><strong>Nível de conhecimento:</strong> {{ db_snapshot.learning_chart.nivel }}%</li>
+                <li><strong>Último treinamento:</strong> {{ db_snapshot.learning_history[0].timestamp if db_snapshot.learning_history else "-" }}</li>
+                <li><strong>Jogos salvos:</strong> {{ db_snapshot.saved_games | length }}</li>
+              </ul>
+              <div class="cta" style="margin-top: 12px;">
+                <span class="badge">Monitoramento</span>
+                <span class="badge accent">Aprendizado contínuo</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="grid" id="relatorio">
+            <div class="card">
+              <h3>Gerar relatório HTML</h3>
+              <form method="post" action="{{ url_for('gerar_relatorio') }}">
+                <label class="toggle">
+                  <input type="checkbox" name="auto_clear" value="true" checked />
+                  Limpar HTML anterior automaticamente
+                </label>
+                <button type="submit">Gerar relatório estático</button>
+                <p class="muted">
+                  Gera um arquivo HTML em /reports/dashboard.html usando os relatórios atuais.
+                  {% if relatorio_html_disponivel %}
+                  <br />
+                  <a href="{{ url_for('relatorio_html') }}">Abrir relatório HTML</a>
+                  {% endif %}
+                </p>
+              </form>
+            </div>
+            <div class="card">
+              <h3>Governança e compliance</h3>
+              <p class="muted">
+                Acompanhe políticas, histórico de decisões e anotações internas para manter a
+                transparência entre os usuários.
+              </p>
+              <div class="metrics">
+                <div class="metric"><span>Políticas ativas</span><strong>3</strong></div>
+                <div class="metric"><span>Última revisão</span><strong>há 4 dias</strong></div>
+                <div class="metric"><span>Responsável</span><strong>Time Strategy</strong></div>
+              </div>
+            </div>
+          </section>
+        </main>
+        <footer class="footer">
+          Trevo4Folhas © 2026 — Ambiente colaborativo com indicadores e geração inteligente de jogos.
+        </footer>
+      </div>
+    </div>
+    <dialog id="learning-chart-modal">
+      <div class="modal">
+        <div class="modal-header">
+          <div>
+            <h3>Nível de aprendizado da IA</h3>
+            <p class="muted">Evolução baseada na memória dos jogos (11+).</p>
+          </div>
+          <button type="button" class="secondary" id="close-learning-chart">Fechar</button>
+        </div>
+        <canvas id="learning-chart" class="chart" width="600" height="260"></canvas>
+      </div>
+    </dialog>
+    <script>
+      const chartData = {{ db_snapshot.learning_chart | tojson }};
+      const openButton = document.getElementById("open-learning-chart");
+      const closeButton = document.getElementById("close-learning-chart");
+      const modal = document.getElementById("learning-chart-modal");
+
+      function drawChart() {
+        const canvas = document.getElementById("learning-chart");
+        if (!canvas || !chartData.labels.length) {
+          return;
+        }
+        const ctx = canvas.getContext("2d");
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const padding = 36;
+        const maxValue = Math.max(...chartData.values, 1);
+        const barWidth = (canvas.width - padding * 2) / chartData.values.length - 12;
+        const originY = canvas.height - padding;
+
+        ctx.fillStyle = "#1d4ed8";
+        chartData.values.forEach((value, index) => {
+          const barHeight = (value / maxValue) * (canvas.height - padding * 2);
+          const x = padding + index * (barWidth + 12);
+          const y = originY - barHeight;
+          ctx.fillRect(x, y, barWidth, barHeight);
+
+          ctx.fillStyle = "#1f2937";
+          ctx.font = "12px 'Inter', sans-serif";
+          ctx.fillText(chartData.labels[index], x + barWidth / 4, originY + 16);
+          ctx.fillStyle = "#1d4ed8";
+        });
+
+        ctx.fillStyle = "#6b7280";
+        ctx.font = "12px 'Inter', sans-serif";
+        ctx.fillText(`Nível atual: ${chartData.nivel}%`, padding, 20);
+      }
+
+      if (openButton) {
+        openButton.addEventListener("click", () => {
+          modal.showModal();
+          drawChart();
+        });
+      }
+
+      if (closeButton) {
+        closeButton.addEventListener("click", () => modal.close());
+      }
+    </script>
+  </body>
+</html>
