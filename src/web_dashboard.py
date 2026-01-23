@@ -25,16 +25,16 @@ app = Flask(__name__, template_folder="templates", static_folder="static")
 
 REPORTS_DIR = ROOT / "reports"
 REPORT_15 = REPORTS_DIR / "relatorio_avaliacao_15.json"
-REPORT_18 = REPORTS_DIR / "relatorio_avaliacao_18.json"
+REPORT_18 = REPORTS_DIR / "relatorio_avaliacao_7.json"
 REPORT_HTML = REPORTS_DIR / "dashboard.html"
 REPORT_LOGS = {
-    "avaliacao": [REPORTS_DIR / "avaliacao_15.log", REPORTS_DIR / "avaliacao_18.log"],
+    "avaliacao": [REPORTS_DIR / "avaliacao_7.log", REPORTS_DIR / "avaliacao_15.log"],
     "treino": [REPORTS_DIR / "treino.log"],
     "gerar_jogos": [REPORTS_DIR / "gerar_jogos.log"],
     "relatorio_html": [REPORTS_DIR / "gerar_dashboard.log"],
 }
 
-DB_DEFAULT_PATH = ROOT / "data" / "BD" / "lotofacil.db"
+DB_DEFAULT_PATH = ROOT / "data" / "BD" / "dia_de_sorte.db"
 
 
 @dataclass
@@ -96,8 +96,8 @@ def fetch_saved_games(conn: sqlite3.Connection, limit: int = 12) -> List[dict]:
     cur = conn.cursor()
     cur.execute(
         """
-        SELECT concurso_previsto, tamanho,
-               d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12,d13,d14,d15,d16,d17,d18,
+        SELECT concurso_previsto, tamanho, mes_sorte,
+               d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12,d13,d14,d15,
                score_final, perfil, timestamp
         FROM predicoes_proximo
         ORDER BY timestamp DESC, id DESC
@@ -108,15 +108,16 @@ def fetch_saved_games(conn: sqlite3.Connection, limit: int = 12) -> List[dict]:
     rows = cur.fetchall()
     games = []
     for row in rows:
-        dezenas = [int(x) for x in row[2:20] if x is not None]
+        dezenas = [int(x) for x in row[3:18] if x is not None]
         games.append(
             {
                 "concurso_previsto": row[0],
                 "tamanho": row[1],
+                "mes_sorte": row[2],
                 "dezenas": dezenas,
-                "score_final": row[20],
-                "perfil": row[21] or "-",
-                "timestamp": row[22] or "-",
+                "score_final": row[18],
+                "perfil": row[19] or "-",
+                "timestamp": row[20] or "-",
             }
         )
     return games
@@ -160,32 +161,32 @@ def fetch_learning_chart(conn: sqlite3.Connection) -> Dict[str, object]:
         """
         SELECT acertos, COUNT(*)
         FROM memoria_jogos
-        WHERE acertos >= 11
+        WHERE acertos >= 4
         GROUP BY acertos
         ORDER BY acertos
         """
     )
     rows = cur.fetchall()
     counts = {int(acertos): int(total) for acertos, total in rows}
-    labels = [str(x) for x in range(11, 16)]
-    values = [counts.get(x, 0) for x in range(11, 16)]
+    labels = [str(x) for x in range(4, 8)]
+    values = [counts.get(x, 0) for x in range(4, 8)]
     total = sum(values)
     if total:
-        weighted = sum((11 + i) * values[i] for i in range(len(values)))
-        nivel = int(round(((weighted / total) - 11) / 4 * 100))
+        weighted = sum((4 + i) * values[i] for i in range(len(values)))
+        nivel = int(round(((weighted / total) - 4) / 3 * 100))
     else:
         nivel = 0
     return {"labels": labels, "values": values, "nivel": max(0, min(100, nivel))}
 
 
 def fetch_learning_summary(conn: sqlite3.Connection) -> Dict[str, object]:
-    summary = {"memoria_total": 0, "tentativas_total": 0, "acertos_14_15": 0}
+    summary = {"memoria_total": 0, "tentativas_total": 0, "acertos_6_7": 0}
     cur = conn.cursor()
     if safe_table_exists(conn, "memoria_jogos"):
         cur.execute("SELECT COUNT(*) FROM memoria_jogos")
         summary["memoria_total"] = cur.fetchone()[0]
-        cur.execute("SELECT COUNT(*) FROM memoria_jogos WHERE acertos >= 14")
-        summary["acertos_14_15"] = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM memoria_jogos WHERE acertos >= 6")
+        summary["acertos_6_7"] = cur.fetchone()[0]
     if safe_table_exists(conn, "tentativas"):
         cur.execute("SELECT COUNT(*) FROM tentativas")
         summary["tentativas_total"] = cur.fetchone()[0]
@@ -328,16 +329,34 @@ def avaliar():
         clear_task_artifacts("avaliacao")
 
     janela = request.form.get("janela", "300")
-    candidatos_15 = request.form.get("candidatos_15", "120")
-    candidatos_18 = request.form.get("candidatos_18", "80")
+    candidatos_7 = request.form.get("candidatos_7", "120")
+    candidatos_15 = request.form.get("candidatos_15", "80")
     top_n = request.form.get("top_n", "60")
-    avaliar_top_k_15 = request.form.get("avaliar_top_k_15", "60")
-    avaliar_top_k_18 = request.form.get("avaliar_top_k_18", "40")
+    avaliar_top_k_7 = request.form.get("avaliar_top_k_7", "60")
+    avaliar_top_k_15 = request.form.get("avaliar_top_k_15", "40")
     max_concursos = request.form.get("max_concursos", "200")
-    exploracao_15 = request.form.get("exploration_15", "0.12")
-    exploracao_18 = request.form.get("exploration_18", "0.08")
+    exploracao_7 = request.form.get("exploration_7", "0.12")
+    exploracao_15 = request.form.get("exploration_15", "0.08")
     simular = request.form.get("simular_aprendizado", "true") == "true"
 
+    cmd_7 = [
+        sys.executable,
+        "scripts/avaliar_desempenho.py",
+        "--janela",
+        janela,
+        "--candidatos",
+        candidatos_7,
+        "--top-n",
+        top_n,
+        "--avaliar-top-k",
+        avaliar_top_k_7,
+        "--max-concursos",
+        max_concursos,
+        "--exploration-rate",
+        exploracao_7,
+        "--salvar-relatorio",
+        str(REPORT_18),
+    ]
     cmd_15 = [
         sys.executable,
         "scripts/avaliar_desempenho.py",
@@ -356,45 +375,27 @@ def avaliar():
         "--salvar-relatorio",
         str(REPORT_15),
     ]
-    cmd_18 = [
-        sys.executable,
-        "scripts/avaliar_desempenho.py",
-        "--janela",
-        janela,
-        "--candidatos",
-        candidatos_18,
-        "--top-n",
-        top_n,
-        "--avaliar-top-k",
-        avaliar_top_k_18,
-        "--max-concursos",
-        max_concursos,
-        "--exploration-rate",
-        exploracao_18,
-        "--salvar-relatorio",
-        str(REPORT_18),
-    ]
     if simular:
+        cmd_7.append("--simular-aprendizado")
         cmd_15.append("--simular-aprendizado")
-        cmd_18.append("--simular-aprendizado")
 
     args = {
         "janela": janela,
+        "candidatos_7": candidatos_7,
         "candidatos_15": candidatos_15,
-        "candidatos_18": candidatos_18,
         "top_n": top_n,
+        "avaliar_top_k_7": avaliar_top_k_7,
         "avaliar_top_k_15": avaliar_top_k_15,
-        "avaliar_top_k_18": avaliar_top_k_18,
         "max_concursos": max_concursos,
+        "exploracao_7": exploracao_7,
         "exploracao_15": exploracao_15,
-        "exploracao_18": exploracao_18,
         "simular": str(simular),
     }
 
     def run_both() -> None:
-        run_command("avaliacao", cmd_15, REPORTS_DIR / "avaliacao_15.log", args)
+        run_command("avaliacao", cmd_7, REPORTS_DIR / "avaliacao_7.log", args)
         if TASKS["avaliacao"].status == "completed":
-            run_command("avaliacao", cmd_18, REPORTS_DIR / "avaliacao_18.log", args)
+            run_command("avaliacao", cmd_15, REPORTS_DIR / "avaliacao_15.log", args)
         if (
             TASKS["avaliacao"].status == "completed"
             and REPORT_15.exists()

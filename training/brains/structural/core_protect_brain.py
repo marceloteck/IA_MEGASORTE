@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 from typing import Any, Dict, List, Tuple
 
+from config.game import DIA_DE_SORTE_RULES
 from training.brains._utils import UNIVERSO, weighted_sample_without_replacement
 from training.core.base_brain import BaseBrain
 
@@ -36,7 +37,7 @@ class StructuralCoreProtectBrain(BaseBrain):
         self.max_blocks = int(max_blocks)
 
         self.state = self.state or {
-            "core_seed": [6, 7, 12, 18, 23],
+            "core_seed": self._default_core_seed(),
             "block_penalties": {},
         }
 
@@ -94,7 +95,7 @@ class StructuralCoreProtectBrain(BaseBrain):
         missing_core = len(set(core) - set(jogo))
 
         block_penalties = self.state.get("block_penalties", {})
-        if missing_core >= 2 and pontos <= 11:
+        if missing_core >= 2 and pontos <= 4:
             blocks = self._extract_blocks(core, sizes=(2, 3))
             for block in blocks:
                 key = ",".join(map(str, block))
@@ -135,6 +136,13 @@ class StructuralCoreProtectBrain(BaseBrain):
         freq = context.get("freq_recente") or {}
         weights = {d: float(freq.get(d, 0)) + 1.0 for d in UNIVERSO}
         return weights
+
+    def _default_core_seed(self) -> List[int]:
+        step = DIA_DE_SORTE_RULES.universo_max / float(self.core_size + 1)
+        return [
+            max(1, min(DIA_DE_SORTE_RULES.universo_max, int(round(step * i))))
+            for i in range(1, self.core_size + 1)
+        ]
 
     def _extract_blocks(self, core: List[int], sizes: Tuple[int, ...]) -> List[Tuple[int, ...]]:
         blocks: List[Tuple[int, ...]] = []

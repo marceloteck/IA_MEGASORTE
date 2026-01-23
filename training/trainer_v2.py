@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Optional
 
 from tqdm import tqdm
 
+from config.game import DIA_DE_SORTE_RULES
 from data.BD.connection import get_conn
 from training.core.brain_hub import BrainHub
 from training.utils.comparador import contar_acertos
@@ -40,7 +41,7 @@ JANELA_RECENTE = 300                 # base de contexto (histórico recente)
 CANDIDATOS_POR_CEREBRO = 80          # candidatos por brain por tamanho
 TOP_N_POR_TAMANHO = 60               # pós-hub (diversidade aplicada)
 AVALIAR_TOP_K = 40                   # quantos avaliar por tamanho (custo controlado)
-SALVAR_MEMORIA_MIN = 12              # salva memoria_jogos a partir de 11 acertos
+SALVAR_MEMORIA_MIN = DIA_DE_SORTE_RULES.memoria_min_acertos
 PERSISTIR_A_CADA = 5                 # salva estados + checkpoint a cada X concursos
 SCORE_TAG = "trainer_v2_hub"         # tag para auditoria
 
@@ -110,7 +111,7 @@ def _fetch_result(conn, concurso: int) -> Optional[List[int]]:
     cur = conn.cursor()
     cur.execute(
         """
-        SELECT d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12,d13,d14,d15
+        SELECT d1,d2,d3,d4,d5,d6,d7
         FROM concursos
         WHERE concurso=?
         """,
@@ -124,13 +125,13 @@ def _fetch_result(conn, concurso: int) -> Optional[List[int]]:
 
 def _fetch_recent_results(conn, concurso_n: int, janela: int) -> List[List[int]]:
     """
-    Retorna lista de resultados [ [15], [15], ... ] dos concursos <= concurso_n
+    Retorna lista de resultados [ [7], [7], ... ] dos concursos <= concurso_n
     com tamanho máximo = janela (do mais antigo ao mais novo).
     """
     cur = conn.cursor()
     cur.execute(
         """
-        SELECT d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12,d13,d14,d15
+        SELECT d1,d2,d3,d4,d5,d6,d7
         FROM concursos
         WHERE concurso <= ?
         ORDER BY concurso DESC
@@ -181,15 +182,15 @@ def _insert_tentativa(
     tempo_exec: float,
 ) -> None:
     """
-    Insere em tentativas no formato d1..d18 (15 ou 18)
+    Insere em tentativas no formato d1..d15 (7..15)
     (corrigido: placeholders automáticos -> nunca mais dá mismatch)
     """
     dezenas_sorted = sorted(int(x) for x in dezenas)
-    payload = dezenas_sorted + [None] * (18 - len(dezenas_sorted))
+    payload = dezenas_sorted + [None] * (DIA_DE_SORTE_RULES.jogo_max_dezenas - len(dezenas_sorted))
 
     cols = [
         "concurso_n", "concurso_n1", "tipo_jogo", "tentativa",
-        "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15", "d16", "d17", "d18",
+        "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15",
         "acertos", "score", "score_tag", "brain_id", "tempo_exec", "timestamp",
     ]
 
@@ -201,7 +202,6 @@ def _insert_tentativa(
         payload[0], payload[1], payload[2], payload[3], payload[4],
         payload[5], payload[6], payload[7], payload[8], payload[9],
         payload[10], payload[11], payload[12], payload[13], payload[14],
-        payload[15], payload[16], payload[17],
         int(acertos),
         float(score),
         SCORE_TAG,
@@ -236,11 +236,11 @@ def _insert_memoria_forte(
         return False
 
     dezenas_sorted = sorted(int(x) for x in dezenas)
-    payload = dezenas_sorted + [None] * (18 - len(dezenas_sorted))
+    payload = dezenas_sorted + [None] * (DIA_DE_SORTE_RULES.jogo_max_dezenas - len(dezenas_sorted))
 
     cols = [
         "concurso_n", "concurso_n1", "tipo_jogo",
-        "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15", "d16", "d17", "d18",
+        "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15",
         "acertos", "peso", "origem", "timestamp",
     ]
 
@@ -251,7 +251,6 @@ def _insert_memoria_forte(
         payload[0], payload[1], payload[2], payload[3], payload[4],
         payload[5], payload[6], payload[7], payload[8], payload[9],
         payload[10], payload[11], payload[12], payload[13], payload[14],
-        payload[15], payload[16], payload[17],
         int(acertos),
         float(peso),
         str(origem),
@@ -278,7 +277,7 @@ def _build_context(conn, concurso_n: int, janela_recente: int) -> Dict[str, Any]
     historico = _fetch_recent_results(conn, concurso_n=concurso_n, janela=janela_recente)
     ultimo = historico[-1] if historico else (_fetch_result(conn, concurso_n) or [])
 
-    freq: Dict[int, int] = {i: 0 for i in range(1, 26)}
+    freq: Dict[int, int] = {i: 0 for i in range(1, DIA_DE_SORTE_RULES.universo_max + 1)}
     for r in historico:
         for d in r:
             freq[int(d)] += 1
@@ -428,8 +427,8 @@ def treinar_pendencias(
     hub.load_all()  # carrega estado persistido dos cérebros
 
     total_mem = 0
-    total_14 = 0
-    total_15 = 0
+    total_6 = 0
+    total_7 = 0
 
     pbar = tqdm(pendentes, desc="Treinando concursos", unit="concurso")
     t0_global = time.time()
@@ -445,34 +444,22 @@ def treinar_pendencias(
         tentativa = 1
         t0 = time.time()
 
-        # --------------------------
-        # 15 dezenas
-        # --------------------------
-        cand15 = hub.generate_games(
-            context=context_base,
-            size=15,
-            per_brain=CANDIDATOS_POR_CEREBRO,
-            top_n=TOP_N_POR_TAMANHO,
-        )
-        top15 = _rank_and_select(cand15, resultado_n1, AVALIAR_TOP_K, tipo=15)
-
-        # --------------------------
-        # 18 dezenas
-        # --------------------------
-        cand18 = hub.generate_games(
-            context=context_base,
-            size=18,
-            per_brain=CANDIDATOS_POR_CEREBRO,
-            top_n=TOP_N_POR_TAMANHO,
-        )
-        top18 = _rank_and_select(cand18, resultado_n1, AVALIAR_TOP_K, tipo=18)
+        top_por_tamanho: List[Dict[str, Any]] = []
+        for tamanho in range(DIA_DE_SORTE_RULES.jogo_min_dezenas, DIA_DE_SORTE_RULES.jogo_max_dezenas + 1):
+            candidatos = hub.generate_games(
+                context=context_base,
+                size=tamanho,
+                per_brain=CANDIDATOS_POR_CEREBRO,
+                top_n=TOP_N_POR_TAMANHO,
+            )
+            top_por_tamanho.extend(_rank_and_select(candidatos, resultado_n1, AVALIAR_TOP_K, tipo=tamanho))
 
         tempo_exec = time.time() - t0
 
         # --------------------------
         # Persistência + aprendizado
         # --------------------------
-        for item in (top15 + top18):
+        for item in top_por_tamanho:
             jogo = item["jogo"]
             acertos = item["acertos"]
             score = item["score"]
@@ -506,10 +493,10 @@ def treinar_pendencias(
                 if ok:
                     total_mem += 1
 
-            if acertos >= 14:
-                total_14 += 1
-            if acertos == 15:
-                total_15 += 1
+            if acertos >= 6:
+                total_6 += 1
+            if acertos == 7:
+                total_7 += 1
 
             hub.learn(
                 concurso_n=concurso_n,
@@ -530,9 +517,8 @@ def treinar_pendencias(
         # ✅ tenta commit a cada ~29 min (só no GitHub Actions)
         last_commit_ts = _try_commit_if_good_every(last_commit_ts, interval_min=29)
 
-        melhor15 = top15[0]["acertos"] if top15 else 0
-        melhor18 = top18[0]["acertos"] if top18 else 0
-        pbar.set_postfix({"melhor15": melhor15, "melhor18": melhor18, "mem+": total_mem, "14+": total_14, "15": total_15})
+        melhor = top_por_tamanho[0]["acertos"] if top_por_tamanho else 0
+        pbar.set_postfix({"melhor": melhor, "mem+": total_mem, "6+": total_6, "7": total_7})
 
     hub.save_all()
 
@@ -542,8 +528,8 @@ def treinar_pendencias(
         "checkpoint_final": _get_checkpoint(conn),
         "duracao_seg": round(dur, 2),
         "memorias_salvas": total_mem,
-        "total_14+": total_14,
-        "total_15": total_15,
+        "total_6+": total_6,
+        "total_7": total_7,
         "timestamp": now_str(),
     }
 
@@ -552,9 +538,9 @@ def treinar_pendencias(
     _log("=========================================")
     _log(f"⏱️ Duração total    : {resumo['duracao_seg']}s")
     _log(f"📌 Checkpoint final : {resumo['checkpoint_final']}")
-    _log(f"💾 Memórias (>=11)  : {resumo['memorias_salvas']}")
-    _log(f"🔥 Acertos 14+      : {resumo['total_14+']}")
-    _log(f"🏆 Acertos 15       : {resumo['total_15']}")
+    _log(f"💾 Memórias (>=5)   : {resumo['memorias_salvas']}")
+    _log(f"🔥 Acertos 6+       : {resumo['total_6+']}")
+    _log(f"🏆 Acertos 7        : {resumo['total_7']}")
     _log("=========================================")
 
     return resumo

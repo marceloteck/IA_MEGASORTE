@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional
 import random
 
 from training.core.base_brain import BaseBrain
+from config.game import DIA_DE_SORTE_RULES
 from training.brains._utils import UNIVERSO, weighted_sample_without_replacement
 
 
@@ -49,11 +50,11 @@ class StatFreqRecenteBrain(BaseBrain):
         size = int(size)
         n = int(n)
 
-        if size not in (15, 18):
-            size = 15
+        if size < DIA_DE_SORTE_RULES.jogo_min_dezenas or size > DIA_DE_SORTE_RULES.jogo_max_dezenas:
+            size = DIA_DE_SORTE_RULES.jogo_max_dezenas
 
-        # Core mais “concentrado” para 15; mais amplo para 18
-        core_size = 16 if size == 15 else 20
+        # Core mais concentrado para jogos maiores
+        core_size = max(size + 4, int(round(len(UNIVERSO) * 0.6)))
 
         # ranqueia por frequência recente
         ranked = sorted(UNIVERSO, key=lambda d: self.freq.get(d, 0), reverse=True)

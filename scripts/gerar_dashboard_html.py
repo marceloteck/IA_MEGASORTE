@@ -7,7 +7,7 @@ from datetime import datetime
 ROOT = Path(__file__).resolve().parents[1]
 REPORTS_DIR = ROOT / "reports"
 REPORT_15 = REPORTS_DIR / "relatorio_avaliacao_15.json"
-REPORT_18 = REPORTS_DIR / "relatorio_avaliacao_18.json"
+REPORT_18 = REPORTS_DIR / "relatorio_avaliacao_7.json"
 OUTPUT = REPORTS_DIR / "dashboard.html"
 
 
@@ -30,8 +30,8 @@ def build_section(title: str, report: dict | None, key: str) -> str:
       <div class="metrics">
         <div class="metric"><span>Média de acertos</span><strong>{resumo.get("media_acertos", "-")}</strong></div>
         <div class="metric"><span>Melhor resultado</span><strong>{resumo.get("melhor", "-")}</strong></div>
-        <div class="metric"><span>Quase acertos (11-13)</span><strong>{resumo.get("quase_acertos_11_13", "-")}</strong></div>
-        <div class="metric"><span>Foco 14/15</span><strong>{resumo.get("foco_14_15", "-")}</strong></div>
+        <div class="metric"><span>Quase acertos (4-5)</span><strong>{resumo.get("quase_acertos_4_5", "-")}</strong></div>
+        <div class="metric"><span>Foco 6/7</span><strong>{resumo.get("foco_6_7", "-")}</strong></div>
       </div>
       <p class="muted">Atualizado em {report.get("timestamp", "-")}</p>
     </div>
@@ -60,7 +60,7 @@ def main() -> None:
       <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>IA Trevo4Folhas — Relatório</title>
+        <title>IA Dia de Sorte — Relatório</title>
         <style>
           :root {{
             color-scheme: dark;
@@ -134,17 +134,17 @@ def main() -> None:
       </head>
       <body>
         <header>
-          <h1>IA Trevo4Folhas — Relatório Executivo</h1>
+          <h1>IA Dia de Sorte — Relatório Executivo</h1>
           <p class="muted">Gerado em {now_str}</p>
         </header>
         <main>
           <section class="grid">
             {build_section("Relatório 15 dezenas", report_15, "15")}
-            {build_section("Relatório 18 dezenas", report_18, "18")}
+            {build_section("Relatório 7 dezenas", report_18, "7")}
           </section>
           <section class="grid">
             {build_brain_list("Top cérebros (15 dezenas)", report_15, "15")}
-            {build_brain_list("Top cérebros (18 dezenas)", report_18, "18")}
+            {build_brain_list("Top cérebros (7 dezenas)", report_18, "7")}
           </section>
         </main>
       </body>

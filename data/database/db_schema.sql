@@ -1,5 +1,5 @@
 -- =====================================================
--- 01) CONCURSOS (DADOS OFICIAIS) - d1..d15
+-- 01) CONCURSOS (DADOS OFICIAIS) - d1..d7 + mes_sorte
 -- =====================================================
 CREATE TABLE IF NOT EXISTS concursos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -11,14 +11,7 @@ CREATE TABLE IF NOT EXISTS concursos (
     d5  INTEGER NOT NULL,
     d6  INTEGER NOT NULL,
     d7  INTEGER NOT NULL,
-    d8  INTEGER NOT NULL,
-    d9  INTEGER NOT NULL,
-    d10 INTEGER NOT NULL,
-    d11 INTEGER NOT NULL,
-    d12 INTEGER NOT NULL,
-    d13 INTEGER NOT NULL,
-    d14 INTEGER NOT NULL,
-    d15 INTEGER NOT NULL,
+    mes_sorte INTEGER,
     data TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_concursos_concurso ON concursos(concurso);
@@ -28,6 +21,13 @@ CREATE INDEX IF NOT EXISTS idx_concursos_concurso ON concursos(concurso);
 -- =====================================================
 CREATE TABLE IF NOT EXISTS frequencias (
     numero INTEGER PRIMARY KEY,
+    quantidade INTEGER NOT NULL,
+    peso REAL NOT NULL,
+    atualizado_em TEXT
+);
+
+CREATE TABLE IF NOT EXISTS frequencias_meses (
+    mes INTEGER PRIMARY KEY,
     quantidade INTEGER NOT NULL,
     peso REAL NOT NULL,
     atualizado_em TEXT
@@ -50,12 +50,11 @@ CREATE TABLE IF NOT EXISTS tentativas (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     concurso_n INTEGER NOT NULL,
     concurso_n1 INTEGER NOT NULL,
-    tipo_jogo INTEGER NOT NULL,      -- 15 ou 18
+    tipo_jogo INTEGER NOT NULL,      -- 7..15
     tentativa INTEGER NOT NULL,
     d1  INTEGER, d2  INTEGER, d3  INTEGER, d4  INTEGER, d5  INTEGER,
     d6  INTEGER, d7  INTEGER, d8  INTEGER, d9  INTEGER, d10 INTEGER,
     d11 INTEGER, d12 INTEGER, d13 INTEGER, d14 INTEGER, d15 INTEGER,
-    d16 INTEGER, d17 INTEGER, d18 INTEGER, -- para jogos 18
     acertos INTEGER NOT NULL,
     score REAL NOT NULL,
     score_tag TEXT NOT NULL,
@@ -68,7 +67,7 @@ CREATE INDEX IF NOT EXISTS idx_tentativas_acertos ON tentativas(acertos);
 CREATE INDEX IF NOT EXISTS idx_tentativas_score   ON tentativas(score);
 
 -- =====================================================
--- 05) MEMÓRIA DE JOGOS FORTES (11–15) - persistência real
+-- 05) MEMÓRIA DE JOGOS FORTES
 -- =====================================================
 CREATE TABLE IF NOT EXISTS memoria_jogos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -78,13 +77,12 @@ CREATE TABLE IF NOT EXISTS memoria_jogos (
     d1  INTEGER, d2  INTEGER, d3  INTEGER, d4  INTEGER, d5  INTEGER,
     d6  INTEGER, d7  INTEGER, d8  INTEGER, d9  INTEGER, d10 INTEGER,
     d11 INTEGER, d12 INTEGER, d13 INTEGER, d14 INTEGER, d15 INTEGER,
-    d16 INTEGER, d17 INTEGER, d18 INTEGER,
     acertos INTEGER NOT NULL,
     peso REAL DEFAULT 1.0,
     origem TEXT,
     timestamp TEXT,
     UNIQUE(concurso_n, concurso_n1, tipo_jogo,
-           d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12,d13,d14,d15,d16,d17,d18)
+           d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12,d13,d14,d15)
 );
 CREATE INDEX IF NOT EXISTS idx_memoria_acertos ON memoria_jogos(acertos);
 
@@ -121,11 +119,10 @@ CREATE TABLE IF NOT EXISTS cerebro_performance (
     concurso INTEGER NOT NULL,
     jogos_gerados INTEGER DEFAULT 0,
     media_pontos REAL DEFAULT 0,
-    qtd_11 INTEGER DEFAULT 0,
-    qtd_12 INTEGER DEFAULT 0,
-    qtd_13 INTEGER DEFAULT 0,
-    qtd_14 INTEGER DEFAULT 0,
-    qtd_15 INTEGER DEFAULT 0,
+    qtd_4 INTEGER DEFAULT 0,
+    qtd_5 INTEGER DEFAULT 0,
+    qtd_6 INTEGER DEFAULT 0,
+    qtd_7 INTEGER DEFAULT 0,
     atualizado_em TEXT,
     UNIQUE(cerebro_id, concurso),
     FOREIGN KEY (cerebro_id) REFERENCES cerebros(id)

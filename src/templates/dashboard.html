@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Trevo4Folhas — Plataforma Lotofácil</title>
+    <title>Dia de Sorte — Plataforma Inteligente</title>
     <style>
       :root {
         color-scheme: light;
@@ -417,8 +417,8 @@
     <div class="app">
       <aside class="sidebar">
         <div class="brand">
-          <h1>Trevo4Folhas</h1>
-          <p>Plataforma inteligente para Lotofácil</p>
+          <h1>Dia de Sorte</h1>
+          <p>Plataforma inteligente para Dia de Sorte</p>
         </div>
         <nav class="nav">
           <a class="active" href="#overview">📊 <span>Visão geral</span></a>
@@ -445,7 +445,7 @@
             <p>Acompanhe indicadores, gere jogos e controle o aprendizado contínuo.</p>
           </div>
           <div class="topbar-actions">
-            <span class="pill">Lotofácil • IA Trevo4Folhas</span>
+            <span class="pill">Dia de Sorte • IA Inteligente</span>
           </div>
         </header>
 
@@ -457,8 +457,8 @@
               <div class="metrics">
                 <div class="metric"><span>Média de acertos</span><strong>{{ relatorio_15.resumo["15"].media_acertos }}</strong></div>
                 <div class="metric"><span>Melhor resultado</span><strong>{{ relatorio_15.resumo["15"].melhor }}</strong></div>
-                <div class="metric"><span>Quase acertos (11-13)</span><strong>{{ relatorio_15.resumo["15"].quase_acertos_11_13 }}</strong></div>
-                <div class="metric"><span>Foco 14/15</span><strong>{{ relatorio_15.resumo["15"].foco_14_15 }}</strong></div>
+                <div class="metric"><span>Quase acertos (5-6)</span><strong>{{ relatorio_15.resumo["15"].quase_acertos_5_6 }}</strong></div>
+                <div class="metric"><span>Foco 6/7</span><strong>{{ relatorio_15.resumo["15"].foco_6_7 }}</strong></div>
               </div>
               <p class="muted">Atualizado em {{ relatorio_15.timestamp }}</p>
               {% else %}
@@ -466,13 +466,13 @@
               {% endif %}
             </div>
             <div class="card">
-              <h3>Relatório 18 dezenas</h3>
+              <h3>Relatório 7 dezenas</h3>
               {% if relatorio_18 %}
               <div class="metrics">
-                <div class="metric"><span>Média de acertos</span><strong>{{ relatorio_18.resumo["18"].media_acertos }}</strong></div>
-                <div class="metric"><span>Melhor resultado</span><strong>{{ relatorio_18.resumo["18"].melhor }}</strong></div>
-                <div class="metric"><span>Quase acertos (11-13)</span><strong>{{ relatorio_18.resumo["18"].quase_acertos_11_13 }}</strong></div>
-                <div class="metric"><span>Foco 14/15</span><strong>{{ relatorio_18.resumo["18"].foco_14_15 }}</strong></div>
+                <div class="metric"><span>Média de acertos</span><strong>{{ relatorio_18.resumo["7"].media_acertos }}</strong></div>
+                <div class="metric"><span>Melhor resultado</span><strong>{{ relatorio_18.resumo["7"].melhor }}</strong></div>
+                <div class="metric"><span>Quase acertos (4-5)</span><strong>{{ relatorio_18.resumo["7"].quase_acertos_4_5 }}</strong></div>
+                <div class="metric"><span>Foco 6/7</span><strong>{{ relatorio_18.resumo["7"].foco_6_7 }}</strong></div>
               </div>
               <p class="muted">Atualizado em {{ relatorio_18.timestamp }}</p>
               {% else %}
@@ -542,13 +542,13 @@
               {% endif %}
             </div>
             <div class="card">
-              <h3>Top cérebros (18 dezenas)</h3>
+              <h3>Top cérebros (7 dezenas)</h3>
               {% if relatorio_18 and relatorio_18.brains %}
               <ul class="list">
                 {% for brain_id, info in relatorio_18.brains.items() %}
                 {% if loop.index <= 8 %}
                 <li>
-                  <strong>{{ brain_id }}</strong> — Top1: {{ info.top1_18 }} | Gerados: {{ info.generated_18 }} | Média acertos (topK): {{ info.avg_acertos_topk_18 }}
+                  <strong>{{ brain_id }}</strong> — Top1: {{ info.top1_7 }} | Gerados: {{ info.generated_7 }} | Média acertos (topK): {{ info.avg_acertos_topk_7 }}
                 </li>
                 {% endif %}
                 {% endfor %}
@@ -567,8 +567,15 @@
                   <div>
                     <label>Quantidade de dezenas</label>
                     <select name="size">
+                      <option value="7">7 dezenas</option>
+                      <option value="8">8 dezenas</option>
+                      <option value="9">9 dezenas</option>
+                      <option value="10">10 dezenas</option>
+                      <option value="11">11 dezenas</option>
+                      <option value="12">12 dezenas</option>
+                      <option value="13">13 dezenas</option>
+                      <option value="14">14 dezenas</option>
                       <option value="15">15 dezenas</option>
-                      <option value="18">18 dezenas</option>
                     </select>
                   </div>
                   <div>
@@ -607,6 +614,7 @@
                   <tr>
                     <th>Concurso</th>
                     <th>Tam.</th>
+                    <th>Mês</th>
                     <th>Jogo</th>
                     <th>Score</th>
                     <th>Perfil</th>
@@ -617,6 +625,7 @@
                   <tr>
                     <td>#{{ jogo.concurso_previsto }}</td>
                     <td>{{ jogo.tamanho }}</td>
+                    <td>{{ jogo.mes_sorte or "-" }}</td>
                     <td>{{ jogo.dezenas | join(', ') }}</td>
                     <td>{{ "%.2f"|format(jogo.score_final) }}</td>
                     <td>{{ jogo.perfil }}</td>
@@ -635,7 +644,7 @@
 
           <section class="grid" id="avaliacao">
             <div class="card">
-              <h3>Executar avaliação (14/15 foco)</h3>
+              <h3>Executar avaliação (6/7 foco)</h3>
               <form method="post" action="{{ url_for('avaliar') }}">
                 <div class="row">
                   <div>
@@ -653,30 +662,30 @@
                 </div>
                 <div class="row">
                   <div>
-                    <label>Candidatos (15)</label>
-                    <input type="number" name="candidatos_15" value="120" />
+                    <label>Candidatos (7)</label>
+                    <input type="number" name="candidatos_7" value="120" />
                   </div>
                   <div>
-                    <label>Avaliar Top K (15)</label>
-                    <input type="number" name="avaliar_top_k_15" value="60" />
+                    <label>Avaliar Top K (7)</label>
+                    <input type="number" name="avaliar_top_k_7" value="60" />
                   </div>
                   <div>
-                    <label>Exploração (15)</label>
-                    <input type="text" name="exploration_15" value="0.12" />
+                    <label>Exploração (7)</label>
+                    <input type="text" name="exploration_7" value="0.12" />
                   </div>
                 </div>
                 <div class="row">
                   <div>
-                    <label>Candidatos (18)</label>
-                    <input type="number" name="candidatos_18" value="80" />
+                    <label>Candidatos (15)</label>
+                    <input type="number" name="candidatos_15" value="80" />
                   </div>
                   <div>
-                    <label>Avaliar Top K (18)</label>
-                    <input type="number" name="avaliar_top_k_18" value="40" />
+                    <label>Avaliar Top K (15)</label>
+                    <input type="number" name="avaliar_top_k_15" value="40" />
                   </div>
                   <div>
-                    <label>Exploração (18)</label>
-                    <input type="text" name="exploration_18" value="0.08" />
+                    <label>Exploração (15)</label>
+                    <input type="text" name="exploration_15" value="0.08" />
                   </div>
                 </div>
                 <div>
@@ -734,7 +743,7 @@
               {% if db_snapshot.available %}
               <div class="metrics">
                 <div class="metric"><span>Memória 11+</span><strong>{{ db_snapshot.learning_summary.memoria_total }}</strong></div>
-                <div class="metric"><span>Acertos 14/15</span><strong>{{ db_snapshot.learning_summary.acertos_14_15 }}</strong></div>
+                <div class="metric"><span>Acertos 6/7</span><strong>{{ db_snapshot.learning_summary.acertos_6_7 }}</strong></div>
                 <div class="metric"><span>Tentativas salvas</span><strong>{{ db_snapshot.learning_summary.tentativas_total }}</strong></div>
               </div>
               <div class="cta" style="margin-top: 12px;">
@@ -824,7 +833,7 @@
           </section>
         </main>
         <footer class="footer">
-          Trevo4Folhas © 2026 — Ambiente colaborativo com indicadores e geração inteligente de jogos.
+          Dia de Sorte © 2026 — Ambiente colaborativo com indicadores e geração inteligente de jogos.
         </footer>
       </div>
     </div>

@@ -1,6 +1,6 @@
-# 🧠 IA_TREVO4FOLHAS — Inteligência Artificial para Lotofácil
+# 🧠 IA_DIA_DE_SORTE — Inteligência Artificial para Dia de Sorte
 
-IA incremental e multicérebro para análise estatística, aprendizado contínuo e geração estruturada de jogos da Lotofácil, com foco em desempenho real nos cenários de 14 e 15 pontos.
+IA incremental e multicérebro para análise estatística, aprendizado contínuo e geração estruturada de jogos da Dia de Sorte, com foco em desempenho real nos cenários de 6 e 7 pontos.
 
 ---
 
@@ -16,7 +16,7 @@ O sistema se organiza em três pilares principais:
 
 ## ✨ Destaques
 
-- **Geração estruturada**: combina padrões heurísticos e estatísticos (não é aleatoriedade pura).
+- **Geração estruturada**: combina padrões heurísticos e estatísticos (não é aleatoriedade pura) para 7–15 dezenas e mês da sorte.
 - **Aprendizado persistente**: estados salvos no banco (`cerebro_estado`) e performance por concurso.
 - **Diversidade controlada**: seleção final evita candidatos excessivamente similares.
 - **Backtest e exploração**: replays históricos para avaliar cenários e ajustar parâmetros.
@@ -27,14 +27,14 @@ O sistema se organiza em três pilares principais:
 ## 🗂️ Estrutura do projeto
 
 ```
-IA_TREVO4FOLHAS/
+IA_DIA_DE_SORTE/
 ├── START/                         # scripts de operação (BD, atualização e geração)
 │   ├── startBD.py
 │   ├── update_concursos.py
 │   ├── gerar_proximo_concurso.py
 │   └── status_aprendizado.py
 ├── training/
-│   ├── trainer_v2.py              # treino incremental
+│   ├── trainer_v2.py              # treino incremental (Dia de Sorte)
 │   ├── backtest/                  # motor de backtest
 │   ├── core/                      # BrainHub e interfaces base
 │   └── brains/                    # cérebros estatísticos/heurísticos/estruturais
@@ -115,7 +115,7 @@ python START/gerar_proximo_concurso.py
 
 Parâmetros úteis:
 - `--perfil [conservador|balanceado|agressivo]`
-- `--both` (gera jogos de 15 e 18 dezenas)
+- `--size [7..15]` (define o tamanho do jogo principal)
 - `--salvar-db` (registra os jogos no banco para conferência futura)
 
 ---
@@ -216,4 +216,4 @@ Para expor o painel em rede, use um host acessível (ex.: `0.0.0.0`) e libere a 
 
 ## 🔒 Observação importante
 
-Este software é uma ferramenta de estudo estatístico. **Não garante lucros ou prêmios**. O uso é de total responsabilidade do usuário.
+Este software é uma ferramenta de estudo estatístico para Dia de Sorte. **Não garante lucros ou prêmios**. O uso é de total responsabilidade do usuário.

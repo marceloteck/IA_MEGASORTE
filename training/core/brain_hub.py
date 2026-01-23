@@ -5,6 +5,7 @@ from collections import defaultdict
 import random
 from typing import Any, Dict, List, Set, Tuple
 
+from config.game import DIA_DE_SORTE_RULES
 from training.core.brain_interface import BrainInterface
 
 
@@ -38,7 +39,7 @@ class BrainHub:
     ):
         self.db = db_conn
         self.brains: List[BrainInterface] = []
-        self.meta = defaultdict(lambda: {"usos": 0, "pontos": 0, "q14": 0, "q15": 0})
+        self.meta = defaultdict(lambda: {"usos": 0, "pontos": 0, "q6": 0, "q7": 0})
 
         self.exploration_rate = max(0.0, min(0.25, float(exploration_rate)))
         self.max_brain_share = max(0.1, min(0.7, float(max_brain_share)))
@@ -57,12 +58,12 @@ class BrainHub:
 
         usos = max(1, int(meta.get("usos", 0)))
         pontos = float(meta.get("pontos", 0))
-        q14 = int(meta.get("q14", 0))
-        q15 = int(meta.get("q15", 0))
+        q6 = int(meta.get("q6", 0))
+        q7 = int(meta.get("q7", 0))
 
         media = pontos / float(usos)
-        bonus = (q14 * 0.6 + q15 * 1.2) / float(usos)
-        peso = 1.0 + (media / 15.0) * 0.15 + bonus * 0.25
+        bonus = (q6 * 0.6 + q7 * 1.2) / float(usos)
+        peso = 1.0 + (media / float(DIA_DE_SORTE_RULES.jogo_max_dezenas)) * 0.15 + bonus * 0.25
         return max(0.85, min(1.25, peso))
 
     def register(self, brain: BrainInterface) -> None:
@@ -182,14 +183,14 @@ class BrainHub:
     def generate_games(self, context: Dict[str, Any], size: int, per_brain: int, top_n: int) -> List[Dict[str, Any]]:
         candidatos = self.generate_candidates(context, size, per_brain)
 
-        # diversidade mais rígida para 15, mais leve para 18
-        max_sim = 0.80 if int(size) == 15 else 0.88
+        # diversidade mais rígida para jogos maiores, mais leve para menores
+        max_sim = 0.80 if int(size) >= 13 else 0.88
 
         densidade = len(candidatos) / max(1, int(top_n))
         if densidade < 2.0:
             max_sim = min(0.95, max_sim + 0.05)
 
-        share = self.max_brain_share if int(size) == 15 else min(0.5, self.max_brain_share + 0.1)
+        share = self.max_brain_share if int(size) >= 13 else min(0.5, self.max_brain_share + 0.1)
         max_per_brain = max(2, int(int(top_n) * float(share)))
 
         if self.quota_enabled and self.quota_max_per_brain > 0:
@@ -214,10 +215,10 @@ class BrainHub:
         m = self.meta[str(brain_id)]
         m["usos"] += 1
         m["pontos"] += int(pontos)
-        if int(pontos) >= 14:
-            m["q14"] += 1
-        if int(pontos) >= 15:
-            m["q15"] += 1
+        if int(pontos) >= 6:
+            m["q6"] += 1
+        if int(pontos) >= 7:
+            m["q7"] += 1
 
         for b in self.brains:
             if b.id == brain_id:
