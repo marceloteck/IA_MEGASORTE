@@ -100,23 +100,46 @@ def ensure_tables_exist(cur):
     Se você quiser criar automaticamente as tabelas quando não existirem,
     descomente o SQL abaixo.
     """
-    # cur.execute("""
-    # CREATE TABLE IF NOT EXISTS concursos (
-    #   concurso INTEGER PRIMARY KEY,
-    #   d1 INTEGER, d2 INTEGER, d3 INTEGER, d4 INTEGER, d5 INTEGER,
-    #   d6 INTEGER, d7 INTEGER, d8 INTEGER, d9 INTEGER, d10 INTEGER,
-    #   d11 INTEGER, d12 INTEGER, d13 INTEGER, d14 INTEGER, d15 INTEGER
-    # )
-    # """)
-    # cur.execute("""
-    # CREATE TABLE IF NOT EXISTS frequencias (
-    #   numero INTEGER PRIMARY KEY,
-    #   quantidade INTEGER NOT NULL,
-    #   peso REAL NOT NULL,
-    #   atualizado_em TEXT NOT NULL
-    # )
-    # """)
-    pass
+    cur.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='concursos'"
+    )
+    if cur.fetchone():
+        return
+
+    schema_path = PROJECT_ROOT / "data" / "database" / "db_schema.sql"
+    if schema_path.exists():
+        cur.executescript(schema_path.read_text(encoding="utf-8"))
+        return
+
+    cur.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS concursos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            concurso INTEGER UNIQUE NOT NULL,
+            d1 INTEGER NOT NULL,
+            d2 INTEGER NOT NULL,
+            d3 INTEGER NOT NULL,
+            d4 INTEGER NOT NULL,
+            d5 INTEGER NOT NULL,
+            d6 INTEGER NOT NULL,
+            d7 INTEGER NOT NULL,
+            mes_sorte INTEGER,
+            data TEXT
+        );
+        CREATE TABLE IF NOT EXISTS frequencias (
+            numero INTEGER PRIMARY KEY,
+            quantidade INTEGER NOT NULL,
+            peso REAL NOT NULL,
+            atualizado_em TEXT
+        );
+        CREATE TABLE IF NOT EXISTS frequencias_meses (
+            mes INTEGER PRIMARY KEY,
+            quantidade INTEGER NOT NULL,
+            peso REAL NOT NULL,
+            atualizado_em TEXT
+        );
+        """
+    )
 
 
 def main():
@@ -151,8 +174,14 @@ def main():
         except Exception:
             df = pd.read_csv(csv_path, sep=None, engine="python", header=None)
 
-        if df.shape[1] < 8:
-            raise ValueError(f"CSV com colunas insuficientes. Esperado 8+ (concurso + 7 dezenas + mes). Veio: {df.shape[1]}")
+        if df.shape[1] < 9:
+            raise ValueError(
+                "CSV com colunas insuficientes. "
+                f"Esperado 9 (concurso + 7 dezenas + mes). Veio: {df.shape[1]}"
+            )
+
+        if isinstance(df.iloc[0, 0], str) and not df.iloc[0, 0].strip().isdigit():
+            df = df.iloc[1:].reset_index(drop=True)
 
         # 3) Maior concurso no DB
         cur.execute("SELECT MAX(concurso) FROM concursos")
