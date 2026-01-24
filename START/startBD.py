@@ -50,7 +50,16 @@ def criar_schema(conn):
 # ======================================================
 def importar_csv_sem_duplicar(conn, csv_path: Path):
     log(f"📥 Lendo CSV: {csv_path}")
-    df = pd.read_csv(csv_path, sep=";")
+    df = pd.read_csv(csv_path, sep=";", header=None)
+    if not df.empty:
+        header_cells = [str(c).strip().lower() for c in df.iloc[0].tolist()]
+        if "concurso" in header_cells and any(cell.startswith("d") for cell in header_cells):
+            df = df.drop(index=0).reset_index(drop=True)
+    if df.shape[1] >= 8:
+        colunas = ["concurso", "d1", "d2", "d3", "d4", "d5", "d6", "d7"]
+        if df.shape[1] >= 9:
+            colunas.append("mes_sorte")
+        df.columns = colunas + list(range(len(colunas), df.shape[1]))
 
     cur = conn.cursor()
 
