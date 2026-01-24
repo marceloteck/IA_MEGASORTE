@@ -1,0 +1,44 @@
+=========================================
+🎯 JOGOS SUGERIDOS — PRÓXIMO CONCURSO
+=========================================
+Data/Hora: 2026-01-24 08:28:26
+Último concurso conhecido: 1167
+Próximo concurso: 1168
+Tamanho do jogo: 7
+Tamanho base (compactação): 15
+Cérebros ativos: 58
+Perfil: agressivo
+Pesos: hub=0.5 freq=0.12 mem=0.25 shape=0.05
+Janela (contexto): 300
+Candidatos por cérebro: 120
+Top_n pós-hub: 250
+Diversidade max_sim (Jaccard): 0.78
+=========================================
+
+JOGO 01: [10, 16, 17, 19, 20, 21, 24] | mês=Agosto
+  score_final=0.726704 | hub=0.958055 | freq=0.858844 | mem=0.538462 | shape=1.000000 | ran=0.750000 | ensemble=0.020000 | fonte=struct_anti_absence
+
+JOGO 02: [7, 10, 12, 16, 17, 21, 24] | mês=Junho
+  score_final=0.711116 | hub=0.955369 | freq=0.840136 | mem=0.538462 | shape=1.000000 | ran=0.900000 | ensemble=0.020000 | fonte=stat_elite_memory
+
+JOGO 03: [7, 10, 20, 24, 27, 30, 31] | mês=Junho
+  score_final=0.705571 | hub=0.976447 | freq=0.894558 | mem=0.400000 | shape=1.000000 | ran=0.750000 | ensemble=0.020000 | fonte=struct_core_protect
+
+JOGO 04: [10, 13, 17, 20, 24, 30, 31] | mês=Julho
+  score_final=0.703429 | hub=0.967879 | freq=0.870748 | mem=0.500000 | shape=1.000000 | ran=0.750000 | ensemble=0.000000 | fonte=struct_core_protect
+
+JOGO 05: [10, 19, 20, 24, 28, 30, 31] | mês=Agosto
+  score_final=0.703300 | hub=0.984150 | freq=0.867347 | mem=0.428571 | shape=0.800000 | ran=0.750000 | ensemble=0.020000 | fonte=struct_core_protect
+
+JOGO 06: [10, 16, 20, 24, 27, 30, 31] | mês=Dezembro
+  score_final=0.697259 | hub=0.982682 | freq=0.882653 | mem=0.400000 | shape=0.800000 | ran=0.750000 | ensemble=0.020000 | fonte=struct_core_protect
+
+JOGO 07: [7, 10, 14, 20, 24, 30, 31] | mês=Fevereiro
+  score_final=0.696309 | hub=0.964455 | freq=0.891156 | mem=0.428571 | shape=0.800000 | ran=0.750000 | ensemble=0.020000 | fonte=struct_core_protect
+
+JOGO 08: [10, 12, 20, 24, 27, 30, 31] | mês=Outubro
+  score_final=0.695563 | hub=0.979696 | freq=0.880952 | mem=0.400000 | shape=0.800000 | ran=0.750000 | ensemble=0.020000 | fonte=struct_core_protect
+
+Observação importante:
+- Loteria é aleatória. Este ranking só prioriza candidatos segundo o aprendizado do sistema.
+- Use com responsabilidade e dentro do seu orçamento.
