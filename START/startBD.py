@@ -17,8 +17,9 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 # agora os imports funcionam sempre
-from config.game import DIA_DE_SORTE_RULES, normalize_mes_sorte
+from config.game import DIA_DE_SORTE_RULES
 from config.paths import SCHEMA_PATH, CSV_PATH
+from config.game import MESES_SORTE_MAP
 from data.BD.connection import get_conn
 
 
@@ -74,7 +75,15 @@ def importar_csv_sem_duplicar(conn, csv_path: Path):
         concurso = int(row.iloc[0])
         dezenas = [int(row.iloc[i]) for i in range(1, 8)]
         mes_raw = row.iloc[8] if len(row) > 8 else None
-        mes_sorte = normalize_mes_sorte(mes_raw)
+        mes_sorte = None
+        if mes_raw is not None and str(mes_raw).strip():
+            mes_text = str(mes_raw).strip().lower()
+            mes_sorte = MESES_SORTE_MAP.get(mes_text)
+            if mes_sorte is None:
+                try:
+                    mes_sorte = int(mes_raw)
+                except ValueError:
+                    mes_sorte = None
 
         cur.execute(
             """

@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import html
-import unicodedata
 from typing import Dict, List
 
 
@@ -58,32 +56,4 @@ MESES_SORTE = [
     "Dezembro",
 ]
 
-def _normalize_mes_key(value: str) -> str:
-    text = html.unescape(value).strip().lower()
-    normalized = unicodedata.normalize("NFKD", text)
-    return "".join(ch for ch in normalized if not unicodedata.combining(ch))
-
-
-MESES_SORTE_MAP: Dict[str, int] = {
-    _normalize_mes_key(mes): idx + 1 for idx, mes in enumerate(MESES_SORTE)
-}
-
-
-def normalize_mes_sorte(value: object) -> int | None:
-    if value is None:
-        return None
-
-    text = str(value).strip()
-    if not text:
-        return None
-
-    try:
-        mes_num = int(text)
-    except ValueError:
-        mes_num = None
-
-    if mes_num is not None:
-        return mes_num if 1 <= mes_num <= 12 else None
-
-    normalized = _normalize_mes_key(text)
-    return MESES_SORTE_MAP.get(normalized)
+MESES_SORTE_MAP: Dict[str, int] = {mes.lower(): idx + 1 for idx, mes in enumerate(MESES_SORTE)}

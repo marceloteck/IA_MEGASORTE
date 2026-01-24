@@ -151,16 +151,6 @@ def main():
         except Exception:
             df = pd.read_csv(csv_path, sep=None, engine="python", header=None)
 
-        if not df.empty:
-            header_cells = [str(c).strip().lower() for c in df.iloc[0].tolist()]
-            if "concurso" in header_cells and any(cell.startswith("d") for cell in header_cells):
-                df = df.drop(index=0).reset_index(drop=True)
-        if df.shape[1] >= 8:
-            colunas = ["concurso", "d1", "d2", "d3", "d4", "d5", "d6", "d7"]
-            if df.shape[1] >= 9:
-                colunas.append("mes_sorte")
-            df.columns = colunas + list(range(len(colunas), df.shape[1]))
-
         if df.shape[1] < 8:
             raise ValueError(f"CSV com colunas insuficientes. Esperado 8+ (concurso + 7 dezenas + mes). Veio: {df.shape[1]}")
 
@@ -179,8 +169,16 @@ def main():
 
             dezenas = [int(r.iloc[i]) for i in range(1, 8)]
             mes_raw = r.iloc[8] if len(r) > 8 else None
-            _, normalize_mes = safe_import_game()
-            mes_sorte = normalize_mes(mes_raw) if normalize_mes else None
+            _, meses_map = safe_import_game()
+            mes_sorte = None
+            if mes_raw is not None and str(mes_raw).strip():
+                mes_text = str(mes_raw).strip().lower()
+                mes_sorte = meses_map.get(mes_text)
+                if mes_sorte is None:
+                    try:
+                        mes_sorte = int(mes_raw)
+                    except ValueError:
+                        mes_sorte = None
             cur.execute(
                 """
                 INSERT OR IGNORE INTO concursos (
@@ -251,7 +249,7 @@ if __name__ == "__main__":
     main()
 def safe_import_game():
     try:
-        from config.game import DIA_DE_SORTE_RULES, normalize_mes_sorte  # type: ignore
-        return DIA_DE_SORTE_RULES, normalize_mes_sorte
+        from config.game import DIA_DE_SORTE_RULES, MESES_SORTE_MAP  # type: ignore
+        return DIA_DE_SORTE_RULES, MESES_SORTE_MAP
     except Exception:
-        return None, None
+        return None, {}
