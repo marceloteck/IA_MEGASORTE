@@ -153,7 +153,12 @@ def _get_checkpoint(conn) -> int:
     return int(row[0])
 
 
-def _set_checkpoint(conn, ultimo_concurso: int, etapa: str = "trainer_v2") -> None:
+def _set_checkpoint(
+    conn,
+    ultimo_concurso: int,
+    etapa: str = "trainer_v2",
+    commit: bool = True,
+) -> None:
     cur = conn.cursor()
     cur.execute(
         """
@@ -166,7 +171,8 @@ def _set_checkpoint(conn, ultimo_concurso: int, etapa: str = "trainer_v2") -> No
         """,
         (int(ultimo_concurso), str(etapa), now_str()),
     )
-    conn.commit()
+    if commit:
+        conn.commit()
 
 
 def _insert_tentativa(
@@ -180,6 +186,7 @@ def _insert_tentativa(
     score: float,
     brain_id: str,
     tempo_exec: float,
+    commit: bool = True,
 ) -> None:
     """
     Insere em tentativas no formato d1..d15 (7..15)
@@ -215,7 +222,8 @@ def _insert_tentativa(
 
     cur = conn.cursor()
     cur.execute(sql, values)
-    conn.commit()
+    if commit:
+        conn.commit()
 
 
 def _insert_memoria_forte(
@@ -227,6 +235,7 @@ def _insert_memoria_forte(
     acertos: int,
     peso: float,
     origem: str,
+    commit: bool = True,
 ) -> bool:
     """
     Salva memoria_jogos (>= SALVAR_MEMORIA_MIN) usando INSERT OR IGNORE
@@ -262,7 +271,8 @@ def _insert_memoria_forte(
 
     cur = conn.cursor()
     cur.execute(sql, values)
-    conn.commit()
+    if commit:
+        conn.commit()
     return cur.rowcount > 0
 
 
@@ -477,6 +487,7 @@ def treinar_pendencias(
                 score=score,
                 brain_id=brain_id,
                 tempo_exec=tempo_exec,
+                commit=False,
             )
 
             if acertos >= SALVAR_MEMORIA_MIN:
@@ -489,6 +500,7 @@ def treinar_pendencias(
                     acertos=acertos,
                     peso=1.0,
                     origem=f"{SCORE_TAG}:{brain_id}",
+                    commit=False,
                 )
                 if ok:
                     total_mem += 1
@@ -509,7 +521,8 @@ def treinar_pendencias(
 
             tentativa += 1
 
-        _set_checkpoint(conn, concurso_n, etapa="trainer_v2")
+        _set_checkpoint(conn, concurso_n, etapa="trainer_v2", commit=False)
+        conn.commit()
 
         if idx % int(PERSISTIR_A_CADA) == 0:
             hub.save_all()
