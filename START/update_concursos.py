@@ -147,9 +147,9 @@ def main():
         log(f"📥 Lendo CSV: {csv_path}")
         # tenta ; primeiro (seu padrão), se falhar tenta autodetectar
         try:
-            df = pd.read_csv(csv_path, sep=";")
+            df = pd.read_csv(csv_path, sep=";", header=None)
         except Exception:
-            df = pd.read_csv(csv_path, sep=None, engine="python")
+            df = pd.read_csv(csv_path, sep=None, engine="python", header=None)
 
         if df.shape[1] < 8:
             raise ValueError(f"CSV com colunas insuficientes. Esperado 8+ (concurso + 7 dezenas + mes). Veio: {df.shape[1]}")
