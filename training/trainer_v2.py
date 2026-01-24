@@ -1,10 +1,6 @@
 # training/trainer_v2.py
 from __future__ import annotations
 
-import os
-import sys
-import subprocess
-from pathlib import Path
 
 import argparse
 import time
@@ -55,50 +51,6 @@ def now_str() -> str:
 
 def _log(msg: str) -> None:
     print(f"[{now_str()}] {msg}")
-
-
-# ==========================
-# COMMIT AUTOMATICO ACTIONS
-# ==========================
-def _try_commit_if_good_every(
-    last_ts: float,
-    interval_min: int = 30,
-) -> float:
-    """
-    Tenta rodar scripts/commit_if_good.py de tempos em tempos.
-    - Só faz sentido no GitHub Actions (GITHUB_ACTIONS=true).
-    - Se falhar, não quebra o treinamento.
-    Retorna o novo timestamp de referência.
-    """
-    if interval_min <= 0:
-        return last_ts
-
-    # Só roda no GitHub Actions (evita bagunçar máquina local)
-    if os.environ.get("GITHUB_ACTIONS", "").lower() != "true":
-        return last_ts
-
-    now = time.time()
-    if (now - last_ts) < (interval_min * 60):
-        return last_ts
-
-    try:
-        root = Path(__file__).resolve().parents[1]  # raiz do repo
-        script = root / "scripts" / "commit_if_good.py"
-        if not script.exists():
-            _log(f"⚠️ commit_if_good.py não encontrado em {script}")
-            return now
-
-        _log("🧾 Tentando commit automático (commit_if_good.py)...")
-        # importante: roda com cwd na raiz do repo
-        subprocess.run(
-            [sys.executable, str(script)],
-            cwd=str(root),
-            check=False,
-        )
-    except Exception as e:
-        _log(f"⚠️ Falha ao tentar commit automático: {e}")
-
-    return now
 
 
 def _fetch_all_concursos(conn) -> List[int]:
@@ -153,7 +105,12 @@ def _get_checkpoint(conn) -> int:
     return int(row[0])
 
 
-def _set_checkpoint(conn, ultimo_concurso: int, etapa: str = "trainer_v2") -> None:
+def _set_checkpoint(
+    conn,
+    ultimo_concurso: int,
+    etapa: str = "trainer_v2",
+    commit: bool = True,
+) -> None:
     cur = conn.cursor()
     cur.execute(
         """
@@ -166,7 +123,8 @@ def _set_checkpoint(conn, ultimo_concurso: int, etapa: str = "trainer_v2") -> No
         """,
         (int(ultimo_concurso), str(etapa), now_str()),
     )
-    conn.commit()
+    if commit:
+        conn.commit()
 
 
 def _insert_tentativa(
@@ -180,6 +138,7 @@ def _insert_tentativa(
     score: float,
     brain_id: str,
     tempo_exec: float,
+    commit: bool = True,
 ) -> None:
     """
     Insere em tentativas no formato d1..d15 (7..15)
@@ -215,7 +174,8 @@ def _insert_tentativa(
 
     cur = conn.cursor()
     cur.execute(sql, values)
-    conn.commit()
+    if commit:
+        conn.commit()
 
 
 def _insert_memoria_forte(
@@ -227,6 +187,7 @@ def _insert_memoria_forte(
     acertos: int,
     peso: float,
     origem: str,
+    commit: bool = True,
 ) -> bool:
     """
     Salva memoria_jogos (>= SALVAR_MEMORIA_MIN) usando INSERT OR IGNORE
@@ -262,7 +223,8 @@ def _insert_memoria_forte(
 
     cur = conn.cursor()
     cur.execute(sql, values)
-    conn.commit()
+    if commit:
+        conn.commit()
     return cur.rowcount > 0
 
 
@@ -432,8 +394,6 @@ def treinar_pendencias(
 
     pbar = tqdm(pendentes, desc="Treinando concursos", unit="concurso")
     t0_global = time.time()
-    last_commit_ts = time.time()
-
     for idx, concurso_n in enumerate(pbar, 1):
         resultado_n1 = _fetch_result(conn, concurso_n + 1)
         if not resultado_n1:
@@ -477,6 +437,7 @@ def treinar_pendencias(
                 score=score,
                 brain_id=brain_id,
                 tempo_exec=tempo_exec,
+                commit=False,
             )
 
             if acertos >= SALVAR_MEMORIA_MIN:
@@ -489,6 +450,7 @@ def treinar_pendencias(
                     acertos=acertos,
                     peso=1.0,
                     origem=f"{SCORE_TAG}:{brain_id}",
+                    commit=False,
                 )
                 if ok:
                     total_mem += 1
@@ -509,13 +471,11 @@ def treinar_pendencias(
 
             tentativa += 1
 
-        _set_checkpoint(conn, concurso_n, etapa="trainer_v2")
+        _set_checkpoint(conn, concurso_n, etapa="trainer_v2", commit=False)
+        conn.commit()
 
         if idx % int(PERSISTIR_A_CADA) == 0:
             hub.save_all()
-
-        # ✅ tenta commit a cada ~29 min (só no GitHub Actions)
-        last_commit_ts = _try_commit_if_good_every(last_commit_ts, interval_min=29)
 
         melhor = top_por_tamanho[0]["acertos"] if top_por_tamanho else 0
         pbar.set_postfix({"melhor": melhor, "mem+": total_mem, "6+": total_6, "7": total_7})

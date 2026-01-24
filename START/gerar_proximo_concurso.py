@@ -634,7 +634,10 @@ def generate_for_size(
         )
 
     ranked.sort(key=lambda x: x["score_final"], reverse=True)
-    final = diversify_ranked(ranked, top_k=qtd, max_sim=max_sim)
+    if int(qtd) == 1:
+        final = ranked[:1]
+    else:
+        final = diversify_ranked(ranked, top_k=qtd, max_sim=max_sim)
     strongest = ranked[: max(0, int(qtd_strong))]
 
     for item in final + strongest:

@@ -116,7 +116,21 @@ python START/gerar_proximo_concurso.py
 Parâmetros úteis:
 - `--perfil [conservador|balanceado|agressivo]`
 - `--size [7..15]` (define o tamanho do jogo principal)
+- `--qtd N` (quantidade de jogos finais do tamanho principal)
+- `--second-size [7..15]` e `--second-qtd N` (gera um segundo tamanho opcional)
 - `--salvar-db` (registra os jogos no banco para conferência futura)
+
+Exemplos:
+
+```bash
+# 10 dezenas, 5 jogos (principal)
+python START/gerar_proximo_concurso.py --size 10 --qtd 5
+```
+
+```bash
+# 7 dezenas (6 jogos) + 15 dezenas (2 jogos adicionais)
+python START/gerar_proximo_concurso.py --size 7 --qtd 6 --second-size 15 --second-qtd 2
+```
 
 ---
 
@@ -187,6 +201,14 @@ python -m src.web_dashboard
 ```
 
 O painel fica disponível em `http://localhost:5000`.
+
+### Escolher tamanho e quantidade no painel
+
+Na seção **“Montar jogos personalizados”**, selecione:
+- **Quantidade de dezenas** (7 a 15).
+- **Quantidade de jogos** (quantos jogos gerar).
+
+Em seguida, clique em **“Gerar jogos sugeridos”** (ou **“Salvar no histórico”**).
 
 ### Executar via Windows (.bat)
 
