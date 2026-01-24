@@ -5,6 +5,7 @@ import random
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
+from config.game import DIA_DE_SORTE_RULES
 from training.core.base_brain import BaseBrain
 
 
@@ -12,7 +13,7 @@ def _now() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
-def _wrap_number(value: int, max_value: int = 25) -> int:
+def _wrap_number(value: int, max_value: int = DIA_DE_SORTE_RULES.universo_max) -> int:
     return ((value - 1) % max_value) + 1
 
 
@@ -39,7 +40,7 @@ BASE_PATTERNS: List[Tuple[str, List[int]]] = [
 class HeuristicStepSequencesBrain(BaseBrain):
     """
     Brain heurístico baseado em sequências de passos (delta sequences).
-    - Gera jogos com start + deltas (wrap 1..25).
+    - Gera jogos com start + deltas (wrap 1..31).
     - Aplica mutação leve e exploração controlada.
     - Aprende padrões simples via estado persistido.
     """
@@ -88,8 +89,8 @@ class HeuristicStepSequencesBrain(BaseBrain):
     def generate(self, context: Dict[str, Any], size: int, n: int) -> List[List[int]]:
         size = int(size)
         n = int(n)
-        if size not in (15, 18, 19):
-            size = 15
+        if size < DIA_DE_SORTE_RULES.jogo_min_dezenas or size > DIA_DE_SORTE_RULES.jogo_max_dezenas:
+            size = DIA_DE_SORTE_RULES.jogo_max_dezenas
 
         jogos: List[List[int]] = []
         attempts = 0
@@ -129,7 +130,7 @@ class HeuristicStepSequencesBrain(BaseBrain):
         top_hits = int(stats.get("top_hits", 0))
         best_hits = int(stats.get("best_hits", 0))
 
-        base = 0.35 + min(0.6, avg_score / 15.0)
+        base = 0.35 + min(0.6, avg_score / float(DIA_DE_SORTE_RULES.jogo_max_dezenas))
         bonus = min(0.2, 0.02 * top_hits + 0.01 * best_hits)
         return min(1.0, base + bonus)
 
@@ -152,9 +153,9 @@ class HeuristicStepSequencesBrain(BaseBrain):
                 pattern_id,
                 {"uses": 0, "top_hits": 0, "avg_score": 0.0, "best_hits": 0, "score_count": 0},
             )
-            if int(pontos) >= 14:
+            if int(pontos) >= 6:
                 stats["top_hits"] = int(stats.get("top_hits", 0)) + 1
-            if int(pontos) >= 13:
+            if int(pontos) >= 5:
                 stats["best_hits"] = int(stats.get("best_hits", 0)) + 1
 
             score_count = int(stats.get("score_count", 0)) + 1
@@ -183,7 +184,7 @@ class HeuristicStepSequencesBrain(BaseBrain):
             deltas = self._mutate_deltas(deltas)
             mutation = True
 
-        start = random.randint(1, 25)
+        start = random.randint(1, DIA_DE_SORTE_RULES.universo_max)
         numbers = self._sequence_from_deltas(start=start, deltas=deltas, size=size)
         if not numbers or len(numbers) != size:
             return None
@@ -259,15 +260,15 @@ class HeuristicStepSequencesBrain(BaseBrain):
         for d in deltas:
             nxt = nums[-1] + int(d)
             if self.wrap_mode == "wrap":
-                nxt = _wrap_number(nxt, 25)
+                nxt = _wrap_number(nxt, DIA_DE_SORTE_RULES.universo_max)
             else:
-                nxt = _wrap_number(nxt, 25)
+                nxt = _wrap_number(nxt, DIA_DE_SORTE_RULES.universo_max)
 
             if nxt in nums:
                 found = False
                 candidate = nxt
-                for _ in range(25):
-                    candidate = _wrap_number(candidate + 1, 25)
+                for _ in range(DIA_DE_SORTE_RULES.universo_max):
+                    candidate = _wrap_number(candidate + 1, DIA_DE_SORTE_RULES.universo_max)
                     if candidate not in nums:
                         nxt = candidate
                         found = True
@@ -295,7 +296,7 @@ class HeuristicStepSequencesBrain(BaseBrain):
 
         min_twos = self.min_twos
         if min_twos is None:
-            min_twos = 3 if size == 15 else 4
+            min_twos = 2 if size <= 9 else 3
         if deltas:
             steps_twos = sum(1 for d in deltas if int(d) == 2)
             if steps_twos < min_twos:

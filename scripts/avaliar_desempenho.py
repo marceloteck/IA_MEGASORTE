@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from config.game import DIA_DE_SORTE_RULES
 from data.BD.connection import get_conn
 from training.core.brain_hub import BrainHub
 from training.trainer_v2 import (
@@ -135,16 +136,16 @@ def selecionar_concursos(
 def _brain_metrics() -> Dict[str, Dict[str, Any]]:
     return defaultdict(
         lambda: {
+            "generated_7": 0,
             "generated_15": 0,
-            "generated_18": 0,
+            "top1_7": 0,
             "top1_15": 0,
-            "top1_18": 0,
+            "topk_sum_7": 0,
+            "topk_count_7": 0,
+            "topk_best_7": 0,
             "topk_sum_15": 0,
             "topk_count_15": 0,
             "topk_best_15": 0,
-            "topk_sum_18": 0,
-            "topk_count_18": 0,
-            "topk_best_18": 0,
         }
     )
 
@@ -167,8 +168,8 @@ def avaliar(
     disable_heuristics: bool,
     disable_structural: bool,
 ) -> Dict[str, Any]:
-    resultados = {15: ResultadoTipo(), 18: ResultadoTipo()}
-    distribuicao = {15: Counter(), 18: Counter()}
+    resultados = {7: ResultadoTipo(), 15: ResultadoTipo()}
+    distribuicao = {7: Counter(), 15: Counter()}
     brains_rank = defaultdict(int)
     brains_stats = _brain_metrics()
 
@@ -192,7 +193,7 @@ def avaliar(
 
         context = _build_context(conn, concurso_n=concurso_n, janela_recente=janela)
 
-        for tamanho in (15, 18):
+        for tamanho in (7, 15):
             candidatos = hub.generate_games(
                 context=context,
                 size=int(tamanho),
@@ -201,7 +202,7 @@ def avaliar(
             )
 
             for item in candidatos:
-                key = "generated_15" if tamanho == 15 else "generated_18"
+                key = "generated_15" if tamanho == 15 else "generated_7"
                 brains_stats[str(item.get("brain_id", "unknown"))][key] += 1
 
             avaliados = _rank_and_select(candidatos, resultado_n1, avaliar_top_k, tipo=tamanho)
@@ -217,7 +218,7 @@ def avaliar(
             melhor_brain = str(melhor.get("brain_id", "unknown"))
             brains_rank[melhor_brain] += 1
 
-            top_key = "top1_15" if tamanho == 15 else "top1_18"
+            top_key = "top1_15" if tamanho == 15 else "top1_7"
             brains_stats[melhor_brain][top_key] += 1
 
             for item in avaliados:
@@ -231,10 +232,10 @@ def avaliar(
                         acertos_item,
                     )
                 else:
-                    brains_stats[brain_id]["topk_sum_18"] += acertos_item
-                    brains_stats[brain_id]["topk_count_18"] += 1
-                    brains_stats[brain_id]["topk_best_18"] = max(
-                        brains_stats[brain_id]["topk_best_18"],
+                    brains_stats[brain_id]["topk_sum_7"] += acertos_item
+                    brains_stats[brain_id]["topk_count_7"] += 1
+                    brains_stats[brain_id]["topk_best_7"] = max(
+                        brains_stats[brain_id]["topk_best_7"],
                         acertos_item,
                     )
 
@@ -251,35 +252,36 @@ def avaliar(
 
     resumo: Dict[int, Dict[str, Any]] = {}
     for tamanho, data in resultados.items():
-        quase_acertos = sum(v for k, v in data.contagens.items() if 11 <= k <= 13)
-        foco_14_15 = sum(v for k, v in data.contagens.items() if k >= 14)
+        quase_4_5 = sum(v for k, v in data.contagens.items() if 4 <= k <= 5)
+        quase_5_6 = sum(v for k, v in data.contagens.items() if 5 <= k <= 6)
+        foco_6_7 = sum(v for k, v in data.contagens.items() if k >= 6)
         resumo[tamanho] = {
             "total": data.total,
             "media_acertos": round(data.media(), 4),
             "melhor": data.melhor,
             "contagens": dict(data.contagens),
-            "quase_acertos_11_13": quase_acertos,
-            "foco_14_15": foco_14_15,
-            "q11+": sum(v for k, v in data.contagens.items() if k >= 11),
-            "q12+": sum(v for k, v in data.contagens.items() if k >= 12),
-            "q13+": sum(v for k, v in data.contagens.items() if k >= 13),
-            "q14+": sum(v for k, v in data.contagens.items() if k >= 14),
-            "q15+": sum(v for k, v in data.contagens.items() if k >= 15),
+            "quase_acertos_4_5": quase_4_5,
+            "quase_acertos_5_6": quase_5_6,
+            "foco_6_7": foco_6_7,
+            "q4+": sum(v for k, v in data.contagens.items() if k >= 4),
+            "q5+": sum(v for k, v in data.contagens.items() if k >= 5),
+            "q6+": sum(v for k, v in data.contagens.items() if k >= 6),
+            "q7+": sum(v for k, v in data.contagens.items() if k >= 7),
         }
 
     brains_output: Dict[str, Dict[str, Any]] = {}
     for brain_id, stats in brains_stats.items():
         avg_15 = (stats["topk_sum_15"] / stats["topk_count_15"]) if stats["topk_count_15"] > 0 else 0.0
-        avg_18 = (stats["topk_sum_18"] / stats["topk_count_18"]) if stats["topk_count_18"] > 0 else 0.0
+        avg_7 = (stats["topk_sum_7"] / stats["topk_count_7"]) if stats["topk_count_7"] > 0 else 0.0
         brains_output[brain_id] = {
             "generated_15": stats["generated_15"],
-            "generated_18": stats["generated_18"],
+            "generated_7": stats["generated_7"],
             "top1_15": stats["top1_15"],
-            "top1_18": stats["top1_18"],
+            "top1_7": stats["top1_7"],
             "avg_acertos_topk_15": round(avg_15, 4),
-            "avg_acertos_topk_18": round(avg_18, 4),
+            "avg_acertos_topk_7": round(avg_7, 4),
             "best_acertos_topk_15": stats["topk_best_15"],
-            "best_acertos_topk_18": stats["topk_best_18"],
+            "best_acertos_topk_7": stats["topk_best_7"],
         }
 
     return {
@@ -303,7 +305,7 @@ def avaliar(
         "brains": dict(
             sorted(
                 brains_output.items(),
-                key=lambda x: x[1]["top1_15"] + x[1]["top1_18"],
+                key=lambda x: x[1]["top1_15"] + x[1]["top1_7"],
                 reverse=True,
             )
         ),
@@ -312,7 +314,7 @@ def avaliar(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Avaliação de desempenho e aprendizado da IA.")
-    parser.add_argument("--db-path", type=str, default=None, help="Caminho do banco lotofacil.db.")
+    parser.add_argument("--db-path", type=str, default=None, help="Caminho do banco dia_de_sorte.db.")
     parser.add_argument("--janela", type=int, default=300, help="Janela de histórico recente.")
     parser.add_argument("--candidatos", type=int, default=80, help="Candidatos por cérebro.")
     parser.add_argument("--top-n", type=int, default=60, help="Top N por tamanho após diversificação.")
@@ -362,12 +364,12 @@ def main() -> None:
     else:
         base_conn = get_conn()
         db_info = base_conn.execute("PRAGMA database_list").fetchone()
-        base_path = Path(db_info[2]) if db_info and db_info[2] else Path("data/BD/lotofacil.db")
+        base_path = Path(db_info[2]) if db_info and db_info[2] else Path("data/BD/dia_de_sorte.db")
         base_conn.close()
 
     # DB de simulação (backup)
     if args.simular_aprendizado:
-        tmp_path = Path("reports") / f"lotofacil_tmp_{int(datetime.now().timestamp())}.db"
+        tmp_path = Path("reports") / f"dia_de_sorte_tmp_{int(datetime.now().timestamp())}.db"
         clone_db(base_path, tmp_path)
         conn = get_conn(str(tmp_path))
     else:

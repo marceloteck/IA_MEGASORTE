@@ -24,10 +24,10 @@ No `trainer_v2.py`:
 
 ## Como gera as sequências
 
-1. Escolhe um número inicial (1..25).
+1. Escolhe um número inicial (1..31).
 2. Seleciona um padrão base de deltas (14 passos para 15 dezenas) e expande para 18/19.
 3. Aplica mutação leve nos deltas (probabilidade configurável).
-4. Soma os passos com wrap 1..25, evitando duplicatas via escape incremental.
+4. Soma os passos com wrap 1..31, evitando duplicatas via escape incremental.
 5. Aplica filtros internos e validações do contexto (RAN/core protect, se disponíveis).
 6. Ordena o resultado final e devolve o jogo.
 

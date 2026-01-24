@@ -4,6 +4,7 @@ from collections import Counter
 from typing import Any, Dict, List, Optional, Tuple
 import random
 
+from config.game import DIA_DE_SORTE_RULES
 from training.core.brain_interface import BrainInterface
 
 
@@ -32,9 +33,9 @@ class StatParesBrain(BrainInterface):
                 self.pares[(dezenas[i], dezenas[j])] += 1
 
     def generate(self, context: Dict[str, Any]) -> List[List[int]]:
-        tamanho = int(context.get("tamanho", 15))
+        tamanho = int(context.get("tamanho", DIA_DE_SORTE_RULES.jogo_max_dezenas))
         n = int(context.get("n", 60))
-        universo = list(range(1, 26))
+        universo = list(range(1, DIA_DE_SORTE_RULES.universo_max + 1))
 
         jogos = []
         top_nums = [d for d, _ in self.freq.most_common(18)] or universo[:]

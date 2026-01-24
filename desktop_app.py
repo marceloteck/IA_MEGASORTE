@@ -16,7 +16,7 @@ from data.BD.connection import get_conn
 
 
 ROOT_DIR = Path(__file__).resolve().parent
-DB_PATH = ROOT_DIR / "data" / "BD" / "lotofacil.db"
+DB_PATH = ROOT_DIR / "data" / "BD" / "dia_de_sorte.db"
 
 
 @dataclass
@@ -47,7 +47,7 @@ def safe_table_exists(conn: sqlite3.Connection, name: str) -> bool:
 class DesktopApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
-        self.title("IA_TREVO4FOLHAS - Desktop")
+        self.title("IA_DIA_DE_SORTE - Desktop")
         self.geometry("980x720")
         self.minsize(900, 650)
         self.configure(bg="#f4f6f8")
@@ -71,14 +71,14 @@ class DesktopApp(tk.Tk):
 
         title = ttk.Label(
             header,
-            text="IA_TREVO4FOLHAS - Central de Execução",
+            text="IA_DIA_DE_SORTE - Central de Execução",
             font=("Segoe UI", 16, "bold"),
         )
         title.pack(anchor="w")
 
         subtitle = ttk.Label(
             header,
-            text="Execute todos os scripts do projeto sem usar arquivos .bat.",
+            text="Execute todos os scripts do projeto Dia de Sorte sem usar arquivos .bat.",
             font=("Segoe UI", 10),
             foreground="#555",
         )
@@ -127,10 +127,10 @@ class DesktopApp(tk.Tk):
         self.per_brain_var = tk.StringVar(value="120")
         self.top_n_var = tk.StringVar(value="250")
         self.max_sim_var = tk.StringVar(value="0.78")
-        self.size_var = tk.StringVar(value="15")
+        self.size_var = tk.StringVar(value="7")
         self.qtd_var = tk.StringVar(value="10")
-        self.second_size_var = tk.StringVar(value="18")
-        self.second_qtd_var = tk.StringVar(value="8")
+        self.second_size_var = tk.StringVar(value="10")
+        self.second_qtd_var = tk.StringVar(value="6")
 
         self._add_entry(config_frame, "Perfil", self.perfil_var)
         self._add_entry(config_frame, "Janela", self.janela_var)
@@ -377,8 +377,8 @@ class DesktopApp(tk.Tk):
             cur = conn.cursor()
             cur.execute(
                 """
-                SELECT concurso_previsto, tamanho,
-                       d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12,d13,d14,d15,d16,d17,d18,
+                SELECT concurso_previsto, tamanho, mes_sorte,
+                       d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12,d13,d14,d15,
                        score_final, perfil, timestamp
                 FROM predicoes_proximo
                 ORDER BY timestamp DESC, id DESC
@@ -390,10 +390,10 @@ class DesktopApp(tk.Tk):
                 self.log_queue.put("Sem jogos salvos no banco.\n")
                 return
             for row in rows:
-                dezenas = [str(x) for x in row[2:20] if x is not None]
+                dezenas = [str(x) for x in row[3:18] if x is not None]
                 self.log_queue.put(
-                    f"#{row[0]} | {row[1]} dezenas | [{', '.join(dezenas)}] "
-                    f"| score {row[20]:.2f} | {row[21] or '-'} | {row[22] or '-'}\n"
+                    f"#{row[0]} | {row[1]} dezenas | mês {row[2] or '-'} | [{', '.join(dezenas)}] "
+                    f"| score {row[18]:.2f} | {row[19] or '-'} | {row[20] or '-'}\n"
                 )
 
         self._run_db_task("Jogos salvos (DB)", task)
@@ -404,12 +404,12 @@ class DesktopApp(tk.Tk):
             if safe_table_exists(conn, "memoria_jogos"):
                 cur.execute("SELECT COUNT(*) FROM memoria_jogos")
                 total_mem = cur.fetchone()[0]
-                cur.execute("SELECT COUNT(*) FROM memoria_jogos WHERE acertos >= 14")
-                total_14 = cur.fetchone()[0]
-                cur.execute("SELECT COUNT(*) FROM memoria_jogos WHERE acertos >= 15")
-                total_15 = cur.fetchone()[0]
-                self.log_queue.put(f"Memória 11+: {total_mem}\n")
-                self.log_queue.put(f"Acertos 14+: {total_14} | Acertos 15: {total_15}\n")
+                cur.execute("SELECT COUNT(*) FROM memoria_jogos WHERE acertos >= 6")
+                total_6 = cur.fetchone()[0]
+                cur.execute("SELECT COUNT(*) FROM memoria_jogos WHERE acertos >= 7")
+                total_7 = cur.fetchone()[0]
+                self.log_queue.put(f"Memória 5+: {total_mem}\n")
+                self.log_queue.put(f"Acertos 6+: {total_6} | Acertos 7: {total_7}\n")
             else:
                 self.log_queue.put("Tabela memoria_jogos não encontrada.\n")
 

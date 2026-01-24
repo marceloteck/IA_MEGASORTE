@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 from typing import Any, Dict, List, Tuple
 
+from config.game import DIA_DE_SORTE_RULES
 from training.brains._utils import UNIVERSO, weighted_sample_without_replacement
 from training.core.base_brain import BaseBrain
 
@@ -28,8 +29,8 @@ class StructuralAntiAbsenceBrain(BaseBrain):
             category="estrutural",
             version="v1",
         )
-        self.core_a = core_a or [6, 7, 12, 18, 23]
-        self.core_b = core_b or [1, 4, 5, 9, 13, 17, 20, 21, 22, 25]
+        self.core_a = core_a or self._default_core(5)
+        self.core_b = core_b or self._default_core(8)
         self.janela_recente = int(janela_recente)
         self.state = self.state or {"core_c": []}
 
@@ -83,11 +84,11 @@ class StructuralAntiAbsenceBrain(BaseBrain):
         hit_c = len(set(jogo) & set(core_c))
 
         penalty = 0.0
-        if hit_a < 4:
+        if hit_a < max(2, len(self.core_a) - 1):
             penalty += 0.45
-        if hit_b < 8:
+        if hit_b < max(3, len(self.core_b) - 2):
             penalty += 0.30
-        if hit_c < 3:
+        if hit_c < max(2, len(core_c) - 1):
             penalty += 0.15
         return min(0.9, penalty)
 
@@ -107,3 +108,10 @@ class StructuralAntiAbsenceBrain(BaseBrain):
         ranked = sorted(score_map.items(), key=lambda x: x[1], reverse=True)
         core_c = [d for d, _ in ranked[:5]]
         return core_c
+
+    def _default_core(self, count: int) -> List[int]:
+        if count <= 0:
+            return []
+        step = DIA_DE_SORTE_RULES.universo_max / float(count + 1)
+        core = [max(1, min(DIA_DE_SORTE_RULES.universo_max, int(round(step * i)))) for i in range(1, count + 1)]
+        return sorted(set(core))

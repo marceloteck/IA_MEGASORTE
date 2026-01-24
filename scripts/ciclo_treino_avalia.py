@@ -87,14 +87,14 @@ def clamp(value: float, min_value: float, max_value: float) -> float:
 def ajustar_exploracao(config: AjusteConfig, report: Dict[str, Any]) -> float:
     resumo = report.get("resumo", {})
     dados_15 = resumo.get("15", {})
-    dados_18 = resumo.get("18", {})
-    q14_15 = int(dados_15.get("q14+", 0))
-    q14_18 = int(dados_18.get("q14+", 0))
+    dados_7 = resumo.get("7", {})
+    q6_15 = int(dados_15.get("q6+", 0))
+    q6_7 = int(dados_7.get("q6+", 0))
 
     nova = config.exploration_rate
-    if q14_15 == 0:
+    if q6_15 == 0:
         nova += config.exploration_step
-    elif q14_15 >= 2 and q14_18 >= 20:
+    elif q6_15 >= 2 and q6_7 >= 20:
         nova -= config.exploration_step / 2.0
 
     return clamp(nova, config.exploration_min, config.exploration_max)

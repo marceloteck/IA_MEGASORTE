@@ -17,6 +17,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 # agora os imports funcionam sempre
+from config.game import DIA_DE_SORTE_RULES, normalize_mes_sorte
 from config.paths import SCHEMA_PATH, CSV_PATH
 from data.BD.connection import get_conn
 
@@ -48,7 +49,16 @@ def criar_schema(conn):
 # ======================================================
 def importar_csv_sem_duplicar(conn, csv_path: Path):
     log(f"📥 Lendo CSV: {csv_path}")
-    df = pd.read_csv(csv_path, sep=";")
+    df = pd.read_csv(csv_path, sep=";", header=None)
+    if not df.empty:
+        header_cells = [str(c).strip().lower() for c in df.iloc[0].tolist()]
+        if "concurso" in header_cells and any(cell.startswith("d") for cell in header_cells):
+            df = df.drop(index=0).reset_index(drop=True)
+    if df.shape[1] >= 8:
+        colunas = ["concurso", "d1", "d2", "d3", "d4", "d5", "d6", "d7"]
+        if df.shape[1] >= 9:
+            colunas.append("mes_sorte")
+        df.columns = colunas + list(range(len(colunas), df.shape[1]))
 
     cur = conn.cursor()
 
@@ -62,16 +72,18 @@ def importar_csv_sem_duplicar(conn, csv_path: Path):
 
     for _, row in df.iterrows():
         concurso = int(row.iloc[0])
-        dezenas = [int(row.iloc[i]) for i in range(1, 16)]
+        dezenas = [int(row.iloc[i]) for i in range(1, 8)]
+        mes_raw = row.iloc[8] if len(row) > 8 else None
+        mes_sorte = normalize_mes_sorte(mes_raw)
 
         cur.execute(
             """
             INSERT OR IGNORE INTO concursos (
                 concurso,
-                d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12,d13,d14,d15
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                d1,d2,d3,d4,d5,d6,d7,mes_sorte
+            ) VALUES (?,?,?,?,?,?,?,?,?)
             """,
-            [concurso] + dezenas,
+            [concurso] + dezenas + [mes_sorte],
         )
         inseridos += cur.rowcount
 
@@ -84,17 +96,20 @@ def importar_csv_sem_duplicar(conn, csv_path: Path):
     log("📊 Recalculando tabela 'frequencias'...")
     cur.execute("DELETE FROM frequencias")
 
-    contagem = {i: 0 for i in range(1, 26)}
+    contagem = {i: 0 for i in range(1, DIA_DE_SORTE_RULES.universo_max + 1)}
+    contagem_meses = {i: 0 for i in range(1, 13)}
 
     cur.execute(
         """
-        SELECT d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12,d13,d14,d15
+        SELECT d1,d2,d3,d4,d5,d6,d7,mes_sorte
         FROM concursos
         """
     )
     for row in cur.fetchall():
-        for dez in row:
+        for dez in row[:7]:
             contagem[int(dez)] += 1
+        if row[7]:
+            contagem_meses[int(row[7])] += 1
 
     total = sum(contagem.values()) or 1
 
@@ -106,6 +121,19 @@ def importar_csv_sem_duplicar(conn, csv_path: Path):
             VALUES (?, ?, ?, ?)
             """,
             (numero, qtd, peso, now()),
+        )
+
+    log("📊 Recalculando tabela 'frequencias_meses'...")
+    cur.execute("DELETE FROM frequencias_meses")
+    total_meses = sum(contagem_meses.values()) or 1
+    for mes, qtd in contagem_meses.items():
+        peso = qtd / total_meses
+        cur.execute(
+            """
+            INSERT INTO frequencias_meses (mes, quantidade, peso, atualizado_em)
+            VALUES (?, ?, ?, ?)
+            """,
+            (mes, qtd, peso, now()),
         )
 
     conn.commit()

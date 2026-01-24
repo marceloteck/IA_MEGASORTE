@@ -5,6 +5,7 @@ import random
 from collections import Counter
 from typing import Any, Dict, List, Tuple, Optional
 
+from config.game import DIA_DE_SORTE_RULES
 from training.core.base_brain import BaseBrain
 from training.brains._utils import UNIVERSO, weighted_sample_without_replacement, count_even, max_consecutive_run
 
@@ -56,7 +57,7 @@ class StatNucleoSatelitesBrain(BaseBrain):
         # memórias internas (leves)
         self.freq: Counter[int] = Counter()
         self.pairs: Counter[Tuple[int, int]] = Counter()
-        self.elite_freq: Counter[int] = Counter()  # reforço quando acertos>=14
+        self.elite_freq: Counter[int] = Counter()  # reforço quando acertos>=6
         self.learn_steps: int = 0
 
         # caches derivados
@@ -80,8 +81,8 @@ class StatNucleoSatelitesBrain(BaseBrain):
     def generate(self, context: Dict[str, Any], size: int, n: int) -> List[List[int]]:
         size = int(size)
         n = int(n)
-        if size not in (15, 18):
-            size = 15
+        if size < DIA_DE_SORTE_RULES.jogo_min_dezenas or size > DIA_DE_SORTE_RULES.jogo_max_dezenas:
+            size = DIA_DE_SORTE_RULES.jogo_max_dezenas
 
         # garante cache pronto
         if not self._cached_nucleo or not self._cached_satelites:
@@ -108,7 +109,7 @@ class StatNucleoSatelitesBrain(BaseBrain):
             jogo = set()
 
             # 1) núcleo (fixo pequeno)
-            k_nucleo = 4 if size == 15 else 5
+            k_nucleo = max(3, int(round(size * 0.3)))
             k_nucleo = min(k_nucleo, len(nucleo))
             if k_nucleo > 0:
                 jogo.update(random.sample(nucleo, k_nucleo))
@@ -142,7 +143,7 @@ class StatNucleoSatelitesBrain(BaseBrain):
             remaining = size - len(jogo)
             if remaining > 0 and self.elite_freq:
                 elite_rank = sorted(UNIVERSO, key=lambda d: self.elite_freq.get(d, 0), reverse=True)
-                elite_pool = [d for d in elite_rank[:14] if d not in jogo]
+                elite_pool = [d for d in elite_rank[: max(10, int(round(size * 1.2)))] if d not in jogo]
                 if elite_pool:
                     take = min(remaining, max(0, int(round(size * 0.20))))
                     take = min(take, len(elite_pool))
@@ -175,7 +176,7 @@ class StatNucleoSatelitesBrain(BaseBrain):
         in_nuc = sum(1 for d in jogo if int(d) in nucleo)
         in_sat = sum(1 for d in jogo if int(d) in sat)
 
-        s_core = (in_nuc / 5.0) * 0.60 + (in_sat / float(len(jogo))) * 0.40
+        s_core = (in_nuc / max(1.0, float(len(nucleo) or 1))) * 0.60 + (in_sat / float(len(jogo))) * 0.40
         s_core = max(0.0, min(1.0, s_core))
 
         # 2) pares fortes internos (normalizado)
@@ -228,7 +229,7 @@ class StatNucleoSatelitesBrain(BaseBrain):
                 self.pairs[_pair_key(res_set[i], res_set[j])] += 1
 
         # 3) sinal elite (quando quase acertou)
-        if int(pontos) >= 14 and jogo:
+        if int(pontos) >= 6 and jogo:
             for d in set(int(x) for x in jogo):
                 self.elite_freq[d] += 1
 
@@ -346,14 +347,14 @@ class StatNucleoSatelitesBrain(BaseBrain):
         Alvo de paridade baseado no último resultado, mas com clamp.
         """
         size = int(size)
-        base = 7 if size == 15 else 9
+        base = max(3, size // 2)
         last = context.get("ultimo_resultado") or []
         if last:
             ev = count_even(list(last))
             t = int(round(0.65 * base + 0.35 * ev))
         else:
             t = base
-        return int(max(3, min(size - 3, t)))
+        return int(max(2, min(size - 2, t)))
 
     def _polish_game(self, jogo: List[int], size: int, target_even: int, context: Dict[str, Any]) -> List[int]:
         """

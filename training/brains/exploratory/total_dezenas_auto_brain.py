@@ -5,17 +5,18 @@ import random
 from typing import Any, Dict, List, Optional, Tuple
 from collections import Counter
 
+from config.game import DIA_DE_SORTE_RULES
 from training.core.base_brain import BaseBrain
 from training.brains._utils import UNIVERSO, weighted_sample_without_replacement, count_even, max_consecutive_run
 
 
 class ExplorTotalDezenasAutoBrain(BaseBrain):
     """
-    Cérebro Exploratório: Total de Dezenas Automático (16..20)
+    Cérebro Exploratório: Total de Dezenas Automático
     ---------------------------------------------------------
     Ideia (inspirada no seu motor antigo):
-    - Em vez de sempre montar diretamente 15/18, ele monta uma "base" de tamanho variável (16..20).
-    - Depois, "comprime" para o tamanho alvo (15 ou 18) com regras leves:
+    - Em vez de sempre montar diretamente o tamanho final, ele monta uma "base" maior.
+    - Depois, "comprime" para o tamanho alvo (7..15) com regras leves:
         * aproxima paridade alvo do contexto
         * evita sequência consecutiva muito grande
         * favorece dezenas quentes recentes (se disponível no contexto)
@@ -31,25 +32,30 @@ class ExplorTotalDezenasAutoBrain(BaseBrain):
         self,
         db_conn,
         tamanhos_base: Optional[List[int]] = None,
-        version: str = "v1",
+        version: str = "v2",
     ):
         super().__init__(
             db_conn=db_conn,
             brain_id="expl_total_dezenas_auto",
-            name="Expl - Total de Dezenas Auto (16..20)",
+            name="Expl - Total de Dezenas Auto",
             category="exploratorio",
             version=version,
         )
 
-        self.tamanhos_base = tamanhos_base or [16, 17, 18, 19, 20]
+        if tamanhos_base is None:
+            min_base = DIA_DE_SORTE_RULES.jogo_min_dezenas + 2
+            max_base = DIA_DE_SORTE_RULES.jogo_max_dezenas + 2
+            self.tamanhos_base = list(range(min_base, max_base + 1))
+        else:
+            self.tamanhos_base = tamanhos_base
 
         # desempenho por tamanho-base (meta)
         self.size_stats: Counter[int] = Counter()       # usos
-        self.size_good: Counter[int] = Counter()        # 11+
-        self.size_elite: Counter[int] = Counter()       # 14+
+        self.size_good: Counter[int] = Counter()        # 5+
+        self.size_elite: Counter[int] = Counter()       # 6+
 
         # preferências aprendidas
-        self.pref_even_target = 7   # default para 15
+        self.pref_even_target = max(3, DIA_DE_SORTE_RULES.jogo_max_dezenas // 2)
         self.pref_run_max = 5       # default razoável
 
         self.load_state()
@@ -73,8 +79,8 @@ class ExplorTotalDezenasAutoBrain(BaseBrain):
     def generate(self, context: Dict[str, Any], size: int, n: int) -> List[List[int]]:
         size = int(size)
         n = int(n)
-        if size not in (15, 18):
-            size = 15
+        if size < DIA_DE_SORTE_RULES.jogo_min_dezenas or size > DIA_DE_SORTE_RULES.jogo_max_dezenas:
+            size = DIA_DE_SORTE_RULES.jogo_max_dezenas
 
         # escolhe distribuição de tamanhos-base (aprendida)
         jogos: List[List[int]] = []
@@ -102,7 +108,7 @@ class ExplorTotalDezenasAutoBrain(BaseBrain):
         # 1) paridade próxima do alvo
         target_even = self._target_even(context=context, size=len(jogo))
         ev = count_even(jogo)
-        s_even = max(0.0, 1.0 - (abs(ev - target_even) / 7.0))
+        s_even = max(0.0, 1.0 - (abs(ev - target_even) / max(3.0, len(jogo))))
 
         # 2) penaliza sequência muito longa
         run = max_consecutive_run(jogo)
@@ -140,19 +146,19 @@ class ExplorTotalDezenasAutoBrain(BaseBrain):
 
         if base_size_guess is not None:
             self.size_stats[base_size_guess] += 1
-            if pontos >= 11:
+            if pontos >= 5:
                 self.size_good[base_size_guess] += 1
-            if pontos >= 14:
+            if pontos >= 6:
                 self.size_elite[base_size_guess] += 1
 
         # ajusta paridade alvo lentamente quando tem 12+
-        if pontos >= 12:
+        if pontos >= 5:
             ev = count_even(jogo)
             # moving average discreta
             self.pref_even_target = int(round(0.85 * self.pref_even_target + 0.15 * ev))
 
         # ajusta run_max quando tem 13+
-        if pontos >= 13:
+        if pontos >= 6:
             run = max_consecutive_run(jogo)
             # preferir manter run controlado
             self.pref_run_max = int(max(4, min(7, round(0.9 * self.pref_run_max + 0.1 * run))))
@@ -177,7 +183,7 @@ class ExplorTotalDezenasAutoBrain(BaseBrain):
         super().load_state()
 
     def report(self) -> Dict[str, Any]:
-        # taxa 11+ por base
+        # taxa 5+ por base
         taxas = {}
         for s in self.tamanhos_base:
             u = int(self.size_stats.get(s, 0))
@@ -185,8 +191,8 @@ class ExplorTotalDezenasAutoBrain(BaseBrain):
             e = int(self.size_elite.get(s, 0))
             taxas[str(s)] = {
                 "usos": u,
-                "taxa_11+": (g / u) if u else 0.0,
-                "taxa_14+": (e / u) if u else 0.0,
+                "taxa_5+": (g / u) if u else 0.0,
+                "taxa_6+": (e / u) if u else 0.0,
             }
 
         return {
@@ -257,7 +263,7 @@ class ExplorTotalDezenasAutoBrain(BaseBrain):
         if freq:
             # pega top por frequência recente como pool principal
             ranked = sorted(UNIVERSO, key=lambda d: freq.get(d, 0), reverse=True)
-            core = ranked[: min(22, max(14, base_size + 2))]
+            core = ranked[: min(len(UNIVERSO), max(base_size + 2, int(len(UNIVERSO) * 0.6)))]
             weights = {d: float(freq.get(d, 0) + 1.0) for d in core}
             base = weighted_sample_without_replacement(weights, min(base_size, len(core)))
             if len(base) < base_size:
@@ -294,7 +300,8 @@ class ExplorTotalDezenasAutoBrain(BaseBrain):
                 mx = max(freq.values()) if freq else 1
                 s += 0.65 * (freq.get(d, 0) / mx)
             # leve priorização por diversidade (não "colar" tudo no meio)
-            s += 0.10 * (1.0 - abs(d - 13) / 12.0)
+            center = (DIA_DE_SORTE_RULES.universo_max + 1) / 2.0
+            s += 0.10 * (1.0 - abs(d - center) / float(DIA_DE_SORTE_RULES.universo_max))
             # ruído controlado para exploração
             s += 0.12 * random.random()
             return s
@@ -348,7 +355,7 @@ class ExplorTotalDezenasAutoBrain(BaseBrain):
         - ajusta leve com último resultado se existir
         """
         size = int(size)
-        base = 7 if size == 15 else 9
+        base = max(3, size // 2)
         t = int(round(0.6 * base + 0.4 * self.pref_even_target))
 
         last = context.get("ultimo_resultado") or []
@@ -358,15 +365,15 @@ class ExplorTotalDezenasAutoBrain(BaseBrain):
             t = int(round(0.75 * t + 0.25 * ev_last))
 
         # clamp
-        return int(max(3, min(size - 3, t)))
+        return int(max(2, min(size - 2, t)))
 
     def _last_base_size_from_context(self, context: Dict[str, Any], final_size: int) -> Optional[int]:
         """
-        Heurística simples: se final_size=15, preferir base 18;
-        se 18, preferir 20. Serve só para meta-contagem.
+        Heurística simples: usa base_size mais próxima do alvo + 2.
         """
-        if final_size == 15:
-            return 18 if 18 in self.tamanhos_base else random.choice(self.tamanhos_base)
-        if final_size == 18:
-            return 20 if 20 in self.tamanhos_base else max(self.tamanhos_base)
+        target = final_size + 2
+        if target in self.tamanhos_base:
+            return target
+        if self.tamanhos_base:
+            return min(self.tamanhos_base, key=lambda x: abs(x - target))
         return None

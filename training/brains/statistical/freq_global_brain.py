@@ -6,6 +6,7 @@ from typing import Any, Dict, List
 import random
 
 from training.core.base_brain import BaseBrain
+from config.game import DIA_DE_SORTE_RULES
 from training.brains._utils import UNIVERSO, weighted_sample_without_replacement
 
 
@@ -13,7 +14,7 @@ class StatFreqGlobalBrain(BaseBrain):
     """
     stat_freq_global
     - Aprende a frequência GLOBAL das dezenas com base nos RESULTADOS REAIS (N+1)
-    - Pode dar reforço leve quando um jogo gerado performa muito bem (14/15)
+    - Pode dar reforço leve quando um jogo gerado performa muito bem (6/7)
     - Gera jogos por amostragem ponderada (sem reposição) + exploração controlada
     """
 
@@ -51,16 +52,15 @@ class StatFreqGlobalBrain(BaseBrain):
         weights: Dict[int, float] = {d: float(self.freq.get(d, 0) + 1) for d in UNIVERSO}
 
         # "core" mais frequentes (controla vício, mas ainda explora)
-        # 15 -> core 18 / 18 -> core 22
-        core_size = 18 if size == 15 else 22
+        core_size = max(size + 6, int(round(len(UNIVERSO) * 0.6)))
         ranked = sorted(UNIVERSO, key=lambda d: weights[d], reverse=True)
         core = ranked[:core_size]
 
         jogos: List[List[int]] = []
         for _ in range(n):
             # mistura: parte do core e parte do universo
-            # 15: ~70% core, 18: ~65% core
-            frac_core = 0.70 if size == 15 else 0.65
+            # jogos maiores: mais core
+            frac_core = 0.55 + min(0.2, size / float(DIA_DE_SORTE_RULES.jogo_max_dezenas) * 0.2)
             k_core = max(0, min(size, int(round(size * frac_core))))
 
             jogo = set()
@@ -114,7 +114,7 @@ class StatFreqGlobalBrain(BaseBrain):
         """
         Aprendizado incremental:
         - Atualiza frequência global com o RESULTADO REAL (N+1)
-        - Reforço leve para dezenas do 'jogo' quando foi muito bem (14/15)
+        - Reforço leve para dezenas do 'jogo' quando foi muito bem (6/7)
         """
         if resultado_n1:
             # frequência global é baseada no resultado real
@@ -123,9 +123,9 @@ class StatFreqGlobalBrain(BaseBrain):
             self.total_resultados += 1
 
         # reforço leve (não pode dominar a estatística global)
-        # 14: +0.25 por dezena do jogo, 15: +0.50
-        if pontos >= 14 and jogo:
-            bonus = 0.50 if pontos >= 15 else 0.25
+        # 6: +0.25 por dezena do jogo, 7: +0.50
+        if pontos >= 6 and jogo:
+            bonus = 0.50 if pontos >= 7 else 0.25
             for d in jogo:
                 self.freq[int(d)] += bonus
 

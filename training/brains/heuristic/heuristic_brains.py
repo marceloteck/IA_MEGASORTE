@@ -3,19 +3,23 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
-from training.brains._utils import UNIVERSO, max_consecutive_run, weighted_sample_without_replacement
+from config.game import DIA_DE_SORTE_RULES
+from training.brains._utils import (
+    UNIVERSO,
+    build_moldura,
+    fibonacci_up_to,
+    max_consecutive_run,
+    multiples_of,
+    primes_up_to,
+    weighted_sample_without_replacement,
+)
 from training.core.base_brain import BaseBrain
 
-PRIMES = {2, 3, 5, 7, 11, 13, 17, 19, 23}
-FIBONACCI = {1, 2, 3, 5, 8, 13, 21}
-MULTIPLOS_3 = {3, 6, 9, 12, 15, 18, 21, 24}
-MOLDURA = {
-    1, 2, 3, 4, 5,
-    6, 10,
-    11, 15,
-    16, 20,
-    21, 22, 23, 24, 25,
-}
+UNIVERSO_MAX = DIA_DE_SORTE_RULES.universo_max
+PRIMES = primes_up_to(UNIVERSO_MAX)
+FIBONACCI = fibonacci_up_to(UNIVERSO_MAX)
+MULTIPLOS_3 = multiples_of(3, UNIVERSO_MAX)
+MOLDURA = build_moldura()
 
 
 @dataclass(frozen=True)
@@ -45,7 +49,7 @@ class HeuristicPatternBrain(BaseBrain):
             version=config.version,
         )
         self.config = config
-        self.state = self.state or {"jogos": 0, "q14": 0, "q15": 0}
+        self.state = self.state or {"jogos": 0, "q6": 0, "q7": 0}
 
     def evaluate_context(self, context: Dict[str, Any]) -> float:
         historico = context.get("historico_recente") or []
@@ -97,7 +101,7 @@ class HeuristicPatternBrain(BaseBrain):
         low_target = self._scaled_value(constraints.get("low_target"), size)
         low_tol = constraints.get("low_tol", 1)
         if low_target is not None:
-            low_count = sum(1 for x in jogo if x <= 12)
+            low_count = sum(1 for x in jogo if x <= DIA_DE_SORTE_RULES.low_number_max)
             scores.append(self._target_score(low_count, low_target, low_tol))
 
         prime_target = self._scaled_value(constraints.get("prime_target"), size)
@@ -166,18 +170,18 @@ class HeuristicPatternBrain(BaseBrain):
         context: Dict[str, Any],
     ) -> None:
         self.state["jogos"] = int(self.state.get("jogos", 0)) + 1
-        if pontos >= 14:
-            self.state["q14"] = int(self.state.get("q14", 0)) + 1
-        if pontos >= 15:
-            self.state["q15"] = int(self.state.get("q15", 0)) + 1
+        if pontos >= 6:
+            self.state["q6"] = int(self.state.get("q6", 0)) + 1
+        if pontos >= 7:
+            self.state["q7"] = int(self.state.get("q7", 0)) + 1
 
         self._perf_update(concurso=int(concurso_n), pontos=int(pontos), jogos_gerados=1)
 
     def _sample_game(self, size: int, context: Dict[str, Any]) -> List[int]:
         freq = context.get("freq_recente") or {}
         constraints = self.config.constraints
-        fixed_numbers = [int(x) for x in constraints.get("fixed_numbers", []) if 1 <= int(x) <= 25]
-        excluded_numbers = {int(x) for x in constraints.get("excluded_numbers", []) if 1 <= int(x) <= 25}
+        fixed_numbers = [int(x) for x in constraints.get("fixed_numbers", []) if 1 <= int(x) <= UNIVERSO_MAX]
+        excluded_numbers = {int(x) for x in constraints.get("excluded_numbers", []) if 1 <= int(x) <= UNIVERSO_MAX}
         weights = {}
         for d in UNIVERSO:
             if d in excluded_numbers:
@@ -213,7 +217,7 @@ class HeuristicPatternBrain(BaseBrain):
         low_target = self._scaled_value(constraints.get("low_target"), size)
         low_tol = constraints.get("low_tol", 1)
         if low_target is not None:
-            low_count = sum(1 for x in jogo if x <= 12)
+            low_count = sum(1 for x in jogo if x <= DIA_DE_SORTE_RULES.low_number_max)
             if abs(low_count - low_target) > low_tol:
                 return False
 
@@ -281,13 +285,13 @@ class HeuristicPatternBrain(BaseBrain):
     def _scaled_value(self, base_value: Optional[int], size: int) -> Optional[int]:
         if base_value is None:
             return None
-        return max(1, int(round(base_value * size / 15)))
+        return max(1, int(round(base_value * size / DIA_DE_SORTE_RULES.jogo_max_dezenas)))
 
     def _scaled_sum_range(self, base_range: Optional[Tuple[int, int]], size: int) -> Optional[Tuple[int, int]]:
         if base_range is None:
             return None
         min_sum, max_sum = base_range
-        factor = size / 15.0
+        factor = size / float(DIA_DE_SORTE_RULES.jogo_max_dezenas)
         return int(round(min_sum * factor)), int(round(max_sum * factor))
 
     def _freq_score(self, jogo: List[int], context: Dict[str, Any]) -> float:
@@ -319,12 +323,12 @@ class HeuristicPatternBrain(BaseBrain):
         return max(0.0, 1.0 - (value - max_value) / float(max_value - min_value + 1))
 
     def _row_col_counts(self, jogo: List[int]) -> Tuple[List[int], List[int]]:
-        rows = [0] * 5
-        cols = [0] * 5
+        rows = [0] * DIA_DE_SORTE_RULES.grid_rows
+        cols = [0] * DIA_DE_SORTE_RULES.grid_cols
         for d in jogo:
             idx = int(d) - 1
-            row = idx // 5
-            col = idx % 5
+            row = idx // DIA_DE_SORTE_RULES.grid_cols
+            col = idx % DIA_DE_SORTE_RULES.grid_cols
             rows[row] += 1
             cols[col] += 1
         return rows, cols

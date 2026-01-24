@@ -9,11 +9,11 @@ from pathlib import Path
 from typing import Dict, Tuple, Optional
 
 ROOT = Path(__file__).resolve().parents[1]
-DB_PATH = ROOT / "data" / "BD" / "lotofacil.db"
+DB_PATH = ROOT / "data" / "BD" / "dia_de_sorte.db"
 MARKER_PATH = ROOT / "scripts" / "ci_good_marker.json"
 
-# Quantas novas memórias 13+ para permitir commit (se não tiver 14/15)
-MIN_NEW_13 = int(os.getenv("MIN_NEW_13", "10"))
+# Quantas novas memórias 5+ para permitir commit (se não tiver 6/7)
+MIN_NEW_5 = int(os.getenv("MIN_NEW_5", "10"))
 
 # branch alvo (no actions geralmente é main)
 TARGET_BRANCH = os.getenv("TARGET_BRANCH", "main")
@@ -59,14 +59,14 @@ def write_marker(data: Dict) -> None:
     MARKER_PATH.parent.mkdir(parents=True, exist_ok=True)
     MARKER_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
-def compute_new_memory_stats(db_path: Path, last_id_13: int) -> Optional[Dict[str, int]]:
+def compute_new_memory_stats(db_path: Path, last_id_5: int) -> Optional[Dict[str, int]]:
     """
     Retorna:
       {
-        "max_id_13": int,
-        "new_13": int,
-        "new_14": int,
-        "new_15": int
+        "max_id_5": int,
+        "new_5": int,
+        "new_6": int,
+        "new_7": int
       }
     ou None se não der.
     """
@@ -77,31 +77,31 @@ def compute_new_memory_stats(db_path: Path, last_id_13: int) -> Optional[Dict[st
 
         cur = conn.cursor()
 
-        cur.execute("SELECT COALESCE(MAX(id), 0) FROM memoria_jogos WHERE acertos >= 13")
-        max_id_13 = int(cur.fetchone()[0] or 0)
+        cur.execute("SELECT COALESCE(MAX(id), 0) FROM memoria_jogos WHERE acertos >= 5")
+        max_id_5 = int(cur.fetchone()[0] or 0)
 
-        if max_id_13 <= last_id_13:
+        if max_id_5 <= last_id_5:
             return {
-                "max_id_13": max_id_13,
-                "new_13": 0,
-                "new_14": 0,
-                "new_15": 0,
+                "max_id_5": max_id_5,
+                "new_5": 0,
+                "new_6": 0,
+                "new_7": 0,
             }
 
-        cur.execute("SELECT COUNT(*) FROM memoria_jogos WHERE acertos >= 13 AND id > ?", (last_id_13,))
-        new_13 = int(cur.fetchone()[0] or 0)
+        cur.execute("SELECT COUNT(*) FROM memoria_jogos WHERE acertos >= 5 AND id > ?", (last_id_5,))
+        new_5 = int(cur.fetchone()[0] or 0)
 
-        cur.execute("SELECT COUNT(*) FROM memoria_jogos WHERE acertos >= 14 AND id > ?", (last_id_13,))
-        new_14 = int(cur.fetchone()[0] or 0)
+        cur.execute("SELECT COUNT(*) FROM memoria_jogos WHERE acertos >= 6 AND id > ?", (last_id_5,))
+        new_6 = int(cur.fetchone()[0] or 0)
 
-        cur.execute("SELECT COUNT(*) FROM memoria_jogos WHERE acertos = 15 AND id > ?", (last_id_13,))
-        new_15 = int(cur.fetchone()[0] or 0)
+        cur.execute("SELECT COUNT(*) FROM memoria_jogos WHERE acertos = 7 AND id > ?", (last_id_5,))
+        new_7 = int(cur.fetchone()[0] or 0)
 
         return {
-            "max_id_13": max_id_13,
-            "new_13": new_13,
-            "new_14": new_14,
-            "new_15": new_15,
+            "max_id_5": max_id_5,
+            "new_5": new_5,
+            "new_6": new_6,
+            "new_7": new_7,
         }
     finally:
         conn.close()
@@ -164,21 +164,21 @@ def main() -> None:
         return
 
     marker = read_marker()
-    last_id_13 = int(marker.get("last_mem_id_13", 0))
+    last_id_5 = int(marker.get("last_mem_id_5", 0))
 
-    stats = compute_new_memory_stats(DB_PATH, last_id_13=last_id_13)
+    stats = compute_new_memory_stats(DB_PATH, last_id_5=last_id_5)
     if stats is None:
         _print("Tabela memoria_jogos não existe. Nada para commitar.")
         return
 
-    max_id_13 = int(stats["max_id_13"])
-    new_13 = int(stats["new_13"])
-    new_14 = int(stats["new_14"])
-    new_15 = int(stats["new_15"])
+    max_id_5 = int(stats["max_id_5"])
+    new_5 = int(stats["new_5"])
+    new_6 = int(stats["new_6"])
+    new_7 = int(stats["new_7"])
 
-    _print(f"Novas memórias desde id>{last_id_13}: 13+={new_13} | 14+={new_14} | 15={new_15}")
-    should_commit = (new_15 >= 1) or (new_14 >= 1) or (new_13 >= MIN_NEW_13)
-    _print(f"Regra commit: 15>=1 OU 14>=1 OU 13+>={MIN_NEW_13} => {should_commit}")
+    _print(f"Novas memórias desde id>{last_id_5}: 5+={new_5} | 6+={new_6} | 7={new_7}")
+    should_commit = (new_7 >= 1) or (new_6 >= 1) or (new_5 >= MIN_NEW_5)
+    _print(f"Regra commit: 7>=1 OU 6>=1 OU 5+>={MIN_NEW_5} => {should_commit}")
 
     if not should_commit:
         _print("Ainda não bateu o mínimo. Não comitando.")
@@ -187,9 +187,9 @@ def main() -> None:
     # ✅ ATENÇÃO: marker NÃO deve ser gravado antes do push ter sucesso.
     # vamos preparar o conteúdo do marker, mas só escrever se push ok.
     marker_next = {
-        "last_mem_id_13": max_id_13,
+        "last_mem_id_5": max_id_5,
         "updated_at": now_str(),
-        "min_new_13": MIN_NEW_13,
+        "min_new_5": MIN_NEW_5,
         "branch": TARGET_BRANCH,
     }
 
@@ -209,7 +209,7 @@ def main() -> None:
         _print("Nada para commitar (diff vazio).")
         return
 
-    msg = f"chore(db): snapshot aprendizagem (novas 13+={new_13},14+={new_14},15={new_15})"
+    msg = f"chore(db): snapshot aprendizagem (novas 5+={new_5},6+={new_6},7={new_7})"
     commit_changes(msg)
 
     ok = push_with_retries(TARGET_BRANCH, retries=PUSH_RETRIES)
