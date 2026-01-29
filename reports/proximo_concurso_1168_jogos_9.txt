@@ -1,0 +1,35 @@
+=========================================
+🎯 JOGOS SUGERIDOS — PRÓXIMO CONCURSO
+=========================================
+Data/Hora: 2026-01-29 19:06:34
+Último concurso conhecido: 1167
+Próximo concurso: 1168
+Tamanho do jogo: 9
+Tamanho base (compactação): 7
+Cérebros ativos: 58
+Perfil: agressivo
+Pesos: hub=0.5 freq=0.12 mem=0.25 shape=0.05
+Janela (contexto): 300
+Candidatos por cérebro: 120
+Top_n pós-hub: 250
+Diversidade max_sim (Jaccard): 0.78
+=========================================
+
+JOGO 01: [10, 12, 20, 24, 29, 30, 31] | mês=Novembro
+  score_final=0.711002 | hub=0.983841 | freq=0.867347 | mem=0.500000 | shape=1.000000 | ran=0.750000 | ensemble=0.000000 | fonte=struct_core_protect
+
+JOGO 02: [8, 10, 16, 20, 24, 30, 31] | mês=Abril
+  score_final=0.707886 | hub=0.977969 | freq=0.869048 | mem=0.538462 | shape=0.800000 | ran=0.750000 | ensemble=0.000000 | fonte=struct_core_protect
+
+JOGO 03: [4, 10, 13, 20, 24, 30, 31] | mês=Fevereiro
+  score_final=0.707877 | hub=0.953870 | freq=0.886054 | mem=0.538462 | shape=1.000000 | ran=0.750000 | ensemble=0.000000 | fonte=struct_core_protect
+
+JOGO 04: [10, 11, 14, 20, 24, 30, 31] | mês=Dezembro
+  score_final=0.698002 | hub=0.954575 | freq=0.880952 | mem=0.500000 | shape=1.000000 | ran=0.750000 | ensemble=0.000000 | fonte=struct_core_protect
+
+JOGO 05: [3, 10, 19, 20, 24, 30, 31] | mês=Maio
+  score_final=0.697450 | hub=0.958369 | freq=0.860544 | mem=0.500000 | shape=1.000000 | ran=0.750000 | ensemble=0.000000 | fonte=struct_core_protect
+
+Observação importante:
+- Loteria é aleatória. Este ranking só prioriza candidatos segundo o aprendizado do sistema.
+- Use com responsabilidade e dentro do seu orçamento.
